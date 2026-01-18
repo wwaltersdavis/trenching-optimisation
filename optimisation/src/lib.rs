@@ -254,11 +254,22 @@ pub fn get_minimum_spacing(structure: Structure) -> f64 {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum PatternName {
+    Continuous,
+    ParallelArray,
+    StandardGrid,
+    TestPits,
+    Herringbone,
+    CentreLine,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct TrenchConfig {
     // TODO: add shifts in x/y
     pub structure: Structure,
     pub distribution: Distribution,
     pub minimum_spacing: f64,
+    pub pattern_name: PatternName,
 }
 
 impl TrenchConfig {
@@ -277,6 +288,7 @@ impl TrenchConfig {
             structure,
             distribution,
             minimum_spacing,
+            pattern_name: PatternName::Continuous,
         }
     }
     pub fn parallel_array(width: f64, length: f64, distribution: Distribution) -> Self {
@@ -295,6 +307,7 @@ impl TrenchConfig {
             structure,
             distribution,
             minimum_spacing,
+            pattern_name: PatternName::ParallelArray,
         }
     }
     pub fn standard_grid(width: f64, length: f64, distribution: Distribution) -> Self {
@@ -313,6 +326,7 @@ impl TrenchConfig {
             structure,
             distribution,
             minimum_spacing,
+            pattern_name: PatternName::StandardGrid,
         }
     }
     pub fn test_pits(width: f64, distribution: Distribution) -> Self {
@@ -334,6 +348,7 @@ impl TrenchConfig {
             structure,
             distribution,
             minimum_spacing,
+            pattern_name: PatternName::TestPits,
         }
     }
     pub fn herringbone(width: f64, length: f64, distribution: Distribution) -> Self {
@@ -352,6 +367,7 @@ impl TrenchConfig {
             structure,
             distribution,
             minimum_spacing,
+            pattern_name: PatternName::Herringbone,
         }
     }
     // pub fn centre_line_of_width(width: f64) -> Self {
