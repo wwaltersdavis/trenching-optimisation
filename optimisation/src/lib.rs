@@ -427,9 +427,7 @@ fn read_single_loe_feature(site_name: String, loe_i: String) -> Result<Polygon> 
     match feature.geometry {
         Some(geometry) => match geometry.value {
             Value::Polygon(polygon) => Ok(get_site_outline_of_loe(polygon)),
-            _ => {
-                Err(anyhow!("Geometry is not a polygon"))
-            }
+            _ => Err(anyhow!("Geometry is not a polygon")),
         },
         // Ok(geometry),
         None => Err(anyhow!("No geometry found in LOE file")),
@@ -476,8 +474,8 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Pol
                 // Skip features that don't match the selected layer
                 if let Some(layer) = selected_layer {
                     if feature.property("Layer").unwrap() != layer {
-                            continue;
-                        }
+                        continue;
+                    }
                 }
                 if let Some(ref geom) = feature.geometry {
                     if let Some(poly) = geometry_to_polygon(geom) {

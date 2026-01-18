@@ -168,8 +168,14 @@ fn run_on_all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
         }
         total_testing_time += testing_time.elapsed().as_millis();
     }
-    println!("Creating trenches took: {:?}s", total_trench_creation_time as f64 / 1000.0);
-    println!("Testing trenches took: {:?}s", total_testing_time as f64 / 1000.0);
+    println!(
+        "Creating trenches took: {:?}s",
+        total_trench_creation_time as f64 / 1000.0
+    );
+    println!(
+        "Testing trenches took: {:?}s",
+        total_testing_time as f64 / 1000.0
+    );
 
     let percentage_found = total_found as f64 / (total_found + total_missed) as f64 * 100.0;
 

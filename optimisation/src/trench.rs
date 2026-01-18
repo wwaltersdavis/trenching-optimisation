@@ -17,24 +17,20 @@ pub fn create_layouts(
     let max_distance_from_centroid = get_max_distance_from_centroid(centroid, &limit_of_excavation);
 
     match config.distribution {
-        Distribution::Spacing(spacing) => {
-            Some(get_layouts_from_spacing(
-                &limit_of_excavation,
-                *config,
-                max_distance_from_centroid,
-                centroid,
-                spacing,
-            ))
-        }
-        Distribution::Coverage(coverage) => {
-            get_layouts_from_coverage(
-                &limit_of_excavation,
-                *config,
-                max_distance_from_centroid,
-                centroid,
-                coverage,
-            )
-        }
+        Distribution::Spacing(spacing) => Some(get_layouts_from_spacing(
+            &limit_of_excavation,
+            *config,
+            max_distance_from_centroid,
+            centroid,
+            spacing,
+        )),
+        Distribution::Coverage(coverage) => get_layouts_from_coverage(
+            &limit_of_excavation,
+            *config,
+            max_distance_from_centroid,
+            centroid,
+            coverage,
+        ),
     }
 }
 
