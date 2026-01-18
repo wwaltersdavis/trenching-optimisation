@@ -1,10 +1,9 @@
 use rayon::prelude::*;
 use std::time::Instant;
 
-use trenching_optimisation::{
-    read_all_test_location_data, read_single_test_location_data, TrenchConfig,
-};
+use trenching_optimisation::TrenchConfig;
 
+use super::io;
 use super::intersects;
 use super::trench;
 
@@ -15,7 +14,7 @@ pub fn single_loe(
     selected_layer: Option<&str>,
 ) {
     println!("\nRunning {:?} on single LOE", config.pattern_name);
-    let test_location = read_single_test_location_data(site_name, loe_i, selected_layer);
+    let test_location = io::read_single_test_location_data(site_name, loe_i, selected_layer);
     match test_location {
         Ok(test_location) => {
             let now = Instant::now();
@@ -47,7 +46,7 @@ pub fn single_loe(
 
 pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
     println!("\nRunning {:?} on all LOEs", config.pattern_name);
-    let test_locations = read_all_test_location_data(selected_layer).unwrap();
+    let test_locations = io::read_all_test_location_data(selected_layer).unwrap();
 
     let now = Instant::now();
 
