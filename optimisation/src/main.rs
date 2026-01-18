@@ -117,7 +117,6 @@ fn run_on_single_loe(
                 }
                 None => {
                     println!("No trenches created for LOE");
-                    return;
                 }
             }
         }

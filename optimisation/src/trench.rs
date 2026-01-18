@@ -18,22 +18,22 @@ pub fn create_layouts(
 
     match config.distribution {
         Distribution::Spacing(spacing) => {
-            return Some(get_layouts_from_spacing(
+            Some(get_layouts_from_spacing(
                 &limit_of_excavation,
                 *config,
                 max_distance_from_centroid,
                 centroid,
                 spacing,
-            ));
+            ))
         }
         Distribution::Coverage(coverage) => {
-            return get_layouts_from_coverage(
+            get_layouts_from_coverage(
                 &limit_of_excavation,
                 *config,
                 max_distance_from_centroid,
                 centroid,
                 coverage,
-            );
+            )
         }
     }
 }
@@ -72,7 +72,7 @@ fn trench_of_array_coordinate(
     rectangle: Rectangle,
 ) -> Option<Polygon> {
     let trench_centroid = centroid.translate(x_offset as f64 * spacing, y_offset as f64 * spacing);
-    let is_alternate_point = (x_index + y_index) % 2 == 0;
+    let is_alternate_point = (x_index + y_index).is_multiple_of(2);
     let rotation = match array_config.pattern_rotation_axis {
         PatternRotationAxis::ByCell => {
             if is_alternate_point {
@@ -82,7 +82,7 @@ fn trench_of_array_coordinate(
             }
         }
         PatternRotationAxis::ByColumn => {
-            if x_index % 2 == 0 {
+            if x_index.is_multiple_of(2) {
                 array_config.base_angle
             } else {
                 array_config.alternate_angle
@@ -203,7 +203,6 @@ fn get_layout_from_spacing(
                 .flat_map(|(x_index, x_offset)| {
                     y_offsets
                         .clone()
-                        .into_iter()
                         .enumerate()
                         .filter_map(move |(y_index, y_offset)| {
                             trench_of_array_coordinate(
@@ -256,7 +255,7 @@ fn get_rotated_trench_patterns(
 ) -> Vec<TrenchLayout> {
     let limit_of_excavation_as_multi = MultiPolygon(vec![limit_of_excavation.clone()]);
 
-    let trench_patterns = (0..rotations)
+    (0..rotations)
         .into_par_iter()
         .map(|rotation| {
             let trench_pattern = trenches.rotate_around_point(rotation as f64, centroid);
@@ -270,17 +269,12 @@ fn get_rotated_trench_patterns(
 
             TrenchLayout(intersection)
         })
-        .collect();
-    trench_patterns
+        .collect()
     // TODO: return average percentage coverage
 }
 
 fn check_coverage(current_coverage: f64, target_coverage: f64) -> bool {
-    if current_coverage > target_coverage - 0.05 && current_coverage < target_coverage + 0.05 {
-        true
-    } else {
-        false
-    }
+    current_coverage > target_coverage - 0.05 && current_coverage < target_coverage + 0.05
 }
 
 fn adjust_trench_layout_to_coverage(
@@ -294,7 +288,7 @@ fn adjust_trench_layout_to_coverage(
     max_distance_from_centroid: &f64,
 ) -> Option<TrenchLayout> {
     let mut iteration = 0;
-    let mut current_spacing = estimated_spacing.clone();
+    let mut current_spacing = estimated_spacing;
     let mut current_trench_pattern = trench_pattern.rotate_around_point(rotation as f64, centroid);
     let mut intersection =
         limit_of_excavation.boolean_op(&current_trench_pattern, geo::OpType::Intersection);
@@ -311,9 +305,9 @@ fn adjust_trench_layout_to_coverage(
         let adjustment_factor = 0.82_f64.powf(iteration as f64);
         let error = (target_coverage - current_coverage) / target_coverage;
         if error < 0.0 {
-            current_spacing = current_spacing * (1.0 + -error * adjustment_factor);
+            current_spacing *= 1.0 + -error * adjustment_factor;
         } else {
-            current_spacing = current_spacing / (1.0 + error * adjustment_factor);
+            current_spacing /= 1.0 + error * adjustment_factor;
         }
 
         // check spacing is not too small

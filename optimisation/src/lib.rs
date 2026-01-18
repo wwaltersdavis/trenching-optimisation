@@ -139,11 +139,7 @@ fn get_index_of_coord_with_max_y(coords: [Coord; 4]) -> usize {
 fn is_coord_outside_x_bounds_of_line(coord: Coord, line: geo::Line<f64>) -> bool {
     // println!("line start: {:?}", line.start);
     // println!("line end: {:?}", line.end);
-    if coord.x < line.start.x || coord.x > line.end.x {
-        true
-    } else {
-        false
-    }
+    coord.x < line.start.x || coord.x > line.end.x
 }
 
 fn get_previous_and_next_index(i: usize, length: usize) -> (usize, usize) {
@@ -195,7 +191,7 @@ pub fn test_get_minimum_spacing(rectangle: Rectangle, angle_1: Degree, angle_2: 
 
 pub fn get_minimum_spacing(structure: Structure) -> f64 {
     match structure {
-        Structure::Parallel(line) => return line.width,
+        Structure::Parallel(line) => line.width,
         Structure::Array(rectangle, array_configuration) => {
             let horizontal_minimum_spacing = minimum_spacing(
                 rectangle,
@@ -215,13 +211,13 @@ pub fn get_minimum_spacing(structure: Structure) -> f64 {
                         array_configuration.base_angle.add(Degree(45.0)),
                     );
                     if array_configuration.separated {
-                        return diagonal_minimum_spacing
+                        diagonal_minimum_spacing
                             .max(verticle_minimum_spacing / 2.0)
-                            .max(horizontal_minimum_spacing / 2.0);
+                            .max(horizontal_minimum_spacing / 2.0)
                     } else {
-                        return diagonal_minimum_spacing
+                        diagonal_minimum_spacing
                             .max(verticle_minimum_spacing)
-                            .max(horizontal_minimum_spacing);
+                            .max(horizontal_minimum_spacing)
                     }
                 }
                 array::PatternRotationAxis::ByColumn => {
@@ -241,15 +237,15 @@ pub fn get_minimum_spacing(structure: Structure) -> f64 {
                         array_configuration.base_angle.add(Degree(45.0)),
                     );
                     if array_configuration.separated {
-                        return diagonal_minimum_spacing
+                        diagonal_minimum_spacing
                             .max(verticle_minimum_spacing_a / 2.0)
                             .max(verticle_minimum_spacing_b / 2.0)
-                            .max(horizontal_minimum_spacing / 2.0);
+                            .max(horizontal_minimum_spacing / 2.0)
                     } else {
-                        return diagonal_minimum_spacing
+                        diagonal_minimum_spacing
                             .max(verticle_minimum_spacing_a)
                             .max(verticle_minimum_spacing_b)
-                            .max(horizontal_minimum_spacing);
+                            .max(horizontal_minimum_spacing)
                     }
                 }
             }
@@ -269,11 +265,8 @@ impl TrenchConfig {
     // TODO: add centre_line
     // TODO: add validate_spacing
     pub fn validate_spacing(minimum_spacing: f64, distribution: Distribution) {
-        match distribution {
-            Distribution::Spacing(spacing) => {
-                assert!(minimum_spacing < spacing, "Spacing too small");
-            }
-            _ => {}
+        if let Distribution::Spacing(spacing) = distribution {
+            assert!(minimum_spacing < spacing, "Spacing too small");
         }
     }
     pub fn continuous(width: f64, distribution: Distribution) -> Self {
@@ -435,7 +428,7 @@ fn read_single_loe_feature(site_name: String, loe_i: String) -> Result<Polygon> 
         Some(geometry) => match geometry.value {
             Value::Polygon(polygon) => Ok(get_site_outline_of_loe(polygon)),
             _ => {
-                return Err(anyhow!("Geometry is not a polygon"));
+                Err(anyhow!("Geometry is not a polygon"))
             }
         },
         // Ok(geometry),
@@ -461,7 +454,7 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
             match process_geojson(&features, selected_layer) {
                 Some(polygons) => {
                     test_locations.push(TestLocation {
-                        limit_of_excavation: limit_of_excavation,
+                        limit_of_excavation,
                         features: polygons,
                     });
                 }
@@ -480,14 +473,11 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Pol
         GeoJson::FeatureCollection(ref collection) => {
             let mut polygons = Vec::new();
             for feature in &collection.features {
-                match selected_layer {
-                    // Skip features that don't match the selected layer
-                    Some(layer) => {
-                        if feature.property("Layer").unwrap() != layer {
+                // Skip features that don't match the selected layer
+                if let Some(layer) = selected_layer {
+                    if feature.property("Layer").unwrap() != layer {
                             continue;
                         }
-                    }
-                    None => {}
                 }
                 if let Some(ref geom) = feature.geometry {
                     if let Some(poly) = geometry_to_polygon(geom) {
