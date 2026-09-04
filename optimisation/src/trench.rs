@@ -1,8 +1,11 @@
+
 use geo::{
-    coord, Area, BooleanOps, Centroid, EuclideanDistance, LineString, MultiPolygon, Point, Polygon,
+    coord, Area, BooleanOps, Centroid, EuclideanDistance, Intersects,
+    LineString, MultiPolygon, Point, Polygon,
     Rotate, Translate,
 };
 use rayon::prelude::*;
+use std::panic;
 use trenching_optimisation::array::{Configuration, PatternRotationAxis};
 use trenching_optimisation::{
     Degree, Distribution, Percentage, Rectangle, Structure, TrenchConfig, TrenchLayout,
@@ -46,14 +49,14 @@ fn estimate_spacing(config: &TrenchConfig, coverage: &Percentage) -> f64 {
     match config.structure {
         Structure::Parallel(line) => line.width / (coverage.percentage_as_decimal()),
         Structure::Array(rectangle, array_config) => {
-            let spacing =
-                ((rectangle.width * rectangle.length) / (coverage.percentage_as_decimal())).sqrt();
             if array_config.separated {
-                spacing / 2.0
-            } else {
-                spacing
-            }
-        }
+                let y_spacing = rectangle.length + 1.0;
+        	(rectangle.width * rectangle.length)
+            	    / (coverage.percentage_as_decimal() * y_spacing)
+    	    } else {
+        	((rectangle.width * rectangle.length) / (coverage.percentage_as_decimal())).sqrt()
+    	    }
+	}
     }
 }
 
@@ -67,7 +70,16 @@ fn trench_of_array_coordinate(
     array_config: &Configuration,
     rectangle: Rectangle,
 ) -> Option<Polygon> {
-    let trench_centroid = centroid.translate(x_offset as f64 * spacing, y_offset as f64 * spacing);
+    let y_spacing = if array_config.separated {
+        rectangle.length + 1.0
+    } else {
+        spacing
+    };
+
+    let trench_centroid = centroid.translate(
+        x_offset as f64 * spacing,
+        y_offset as f64 * y_spacing,
+    );
     let is_alternate_point = (x_index + y_index).is_multiple_of(2);
     let rotation = match array_config.pattern_rotation_axis {
         PatternRotationAxis::ByCell => {
@@ -86,7 +98,7 @@ fn trench_of_array_coordinate(
         }
     };
 
-    if array_config.separated & is_alternate_point {
+    if array_config.separated && is_alternate_point {
         None
     } else {
         Some(plot_trench(
@@ -235,6 +247,15 @@ fn get_max_distance_from_centroid(centroid: Point, limit_of_excavation: &Polygon
             });
     max_distance_from_centroid
 }
+fn safe_intersection(
+    a: &MultiPolygon<f64>,
+    b: &MultiPolygon<f64>,
+) -> Option<MultiPolygon<f64>> {
+    panic::catch_unwind(|| {
+        a.boolean_op(b, geo::OpType::Intersection)
+    })
+    .ok()
+}
 
 fn calculate_coverage(
     trench_layout: &MultiPolygon<f64>,
@@ -253,17 +274,27 @@ fn get_rotated_trench_patterns(
 
     (0..rotations)
         .into_par_iter()
-        .map(|rotation| {
-            let trench_pattern = trenches.rotate_around_point(rotation as f64, centroid);
+        .filter_map(|rotation| {
+            let trench_pattern =
+                trenches.rotate_around_point(rotation as f64, centroid);
+            let trenches_deployed = trench_pattern
+                .0
+                .iter()
+                .filter(|polygon| polygon.intersects(limit_of_excavation))
+                .count() as u64;
 
             // cut trench to site outline
-            let intersection =
-                limit_of_excavation_as_multi.boolean_op(&trench_pattern, geo::OpType::Intersection);
+            let Some(intersection) =
+                safe_intersection(&limit_of_excavation_as_multi, &trench_pattern)
+            else {
+                println!("Skipped rotation {} because site intersection failed", rotation);
+                return None;
+            };
 
             let _percentage_coverage =
                 calculate_coverage(&intersection, &limit_of_excavation_as_multi);
 
-            TrenchLayout(intersection)
+            Some(TrenchLayout(intersection, trenches_deployed))
         })
         .collect()
     // TODO: return average percentage coverage
@@ -286,13 +317,21 @@ fn adjust_trench_layout_to_coverage(
     let mut iteration = 0;
     let mut current_spacing = estimated_spacing;
     let mut current_trench_pattern = trench_pattern.rotate_around_point(rotation as f64, centroid);
-    let mut intersection =
-        limit_of_excavation.boolean_op(&current_trench_pattern, geo::OpType::Intersection);
+    let Some(mut intersection) =
+        safe_intersection(limit_of_excavation, &current_trench_pattern)
+    else {
+        println!(
+            "No trenches created for {:?}: initial site intersection failed at rotation {}",
+            config.pattern_name,
+            rotation
+        );
+        return None;
+    };
     let mut current_coverage = calculate_coverage(&intersection, limit_of_excavation);
 
     // println!("Target coverage: {}", target_coverage);
 
-    while (iteration <= 10) && !check_coverage(current_coverage, target_coverage) {
+    while (iteration <= 30) && !check_coverage(current_coverage, target_coverage) {
         // println!("\nCurrent iteration: {}", iteration);
         // println!("Current spacing: {}", current_spacing);
         // println!("Current coverage: {}", current_coverage);
@@ -308,9 +347,14 @@ fn adjust_trench_layout_to_coverage(
 
         // check spacing is not too small
         if spacing_smaller_than_minimum(&current_spacing, &config.minimum_spacing) {
-            // println!("Spacing too small");
-            return None;
-        }
+    	    println!(
+        	"Spacing too small for {:?}: target {:.2} current {:.2}",
+        	config.pattern_name,
+        	target_coverage,
+        	current_coverage
+    	    );
+    	    return None;
+	}
 
         current_trench_pattern = get_layout_from_spacing(
             *config,
@@ -320,18 +364,41 @@ fn adjust_trench_layout_to_coverage(
         )
         .rotate_around_point(rotation as f64, centroid);
 
-        intersection =
-            limit_of_excavation.boolean_op(&current_trench_pattern, geo::OpType::Intersection);
+        let Some(next_intersection) =
+            safe_intersection(limit_of_excavation, &current_trench_pattern)
+        else {
+            println!(
+                "No trenches created for {:?}: site intersection failed at rotation {}, iteration {}",
+                config.pattern_name,
+                rotation,
+                iteration
+            );
+            return None;
+        };
+
+        intersection = next_intersection;
 
         current_coverage = calculate_coverage(&intersection, limit_of_excavation);
         iteration += 1;
     }
 
     if check_coverage(current_coverage, target_coverage) {
-        // println!("Target coverage hit");
-        Some(TrenchLayout(intersection))
+        // Count the individual trenches or pits that intersect the site.
+        let trenches_deployed = current_trench_pattern
+            .0
+            .iter()
+            .filter(|polygon| polygon.intersects(limit_of_excavation))
+            .count() as u64;
+
+        Some(TrenchLayout(intersection, trenches_deployed))
     } else {
-        // println!("Target coverage not hit");
+        println!(
+            "Failed {:?}: target {:.2} achieved {:.2} after {} iterations",
+            config.pattern_name,
+            target_coverage,
+            current_coverage,
+            iteration
+        );
         None
     }
 }

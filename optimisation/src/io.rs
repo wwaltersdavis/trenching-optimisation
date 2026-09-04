@@ -5,7 +5,7 @@ use geojson::{Feature, GeoJson, Geometry, Value};
 use std::io::BufReader;
 use std::time::Instant;
 
-use trenching_optimisation::TestLocation;
+use trenching_optimisation::{ArchFeature, TestLocation};
 
 pub fn read_single_test_location_data(
     site_name: String,
@@ -18,10 +18,11 @@ pub fn read_single_test_location_data(
     match process_geojson(&gj, selected_layer) {
         Some(features) => {
             println!("Reading files took: {:?}", now.elapsed());
-            Ok(TestLocation {
-                limit_of_excavation,
-                features,
-            })
+	    Ok(TestLocation {
+    		site_name,
+    		limit_of_excavation,
+    		features,
+	    })
         }
         None => Err(anyhow!(
             "No {:?} at site: {} location: {}",
@@ -77,11 +78,11 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
     let mut test_locations = Vec::new();
 
     let sites_location_counts = [
-        ("Stansted", 17),
-        // ("Heathrow", 5),
-        ("A355_BeaconsfieldEasternReliefRoad", 3),
-        ("_NDR__", 22),
-        ("wingerworth", 2),
+    ("A355_BeaconsfieldEasternReliefRoad", 3),
+    ("Galloper", 1),
+    ("Heathrow", 5),
+    ("Stansted", 17),
+    ("wingerworth", 2),
     ];
     for (site, location_count) in sites_location_counts.iter() {
         for i in 0..*location_count {
@@ -89,9 +90,10 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
             let features = read_single_features_geojson(site.to_string(), i.to_string())?;
             match process_geojson(&features, selected_layer) {
                 Some(polygons) => {
-                    test_locations.push(TestLocation {
-                        limit_of_excavation,
-                        features: polygons,
+		    test_locations.push(TestLocation {
+    			site_name: site.to_string(),
+    			limit_of_excavation,
+    			features: polygons,
                     });
                 }
                 None => {
@@ -104,29 +106,62 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
     Ok(test_locations)
 }
 
-fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Polygon<f64>>> {
+fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<ArchFeature>> {
     match *gj {
         GeoJson::FeatureCollection(ref collection) => {
-            let mut polygons = Vec::new();
+            let mut features = Vec::new();
+
             for feature in &collection.features {
-                // Skip features that don't match the selected layer
                 if let Some(layer) = selected_layer {
                     if feature.property("Layer").unwrap() != layer {
                         continue;
                     }
                 }
+
                 if let Some(ref geom) = feature.geometry {
                     if let Some(poly) = geometry_to_polygon(geom) {
-                        polygons.push(poly);
-                    } else {
-                        println!("No polygon found");
+                        let period = feature
+                            .property("Period")
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "Unknown".to_string());
+
+                        let feature_type = feature
+                            .property("Type")
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "Unknown".to_string());
+
+                        let monument = feature
+    			    .property("MONUMENT")
+    			    .map(|v| v.to_string())
+    			    .unwrap_or_else(|| "Unknown".to_string());
+
+			let area_text = feature
+    			    .property("POLY_AREA")
+    			    .map(|v| v.to_string())
+                            .unwrap_or_else(|| "0".to_string());
+
+			let area = area_text
+    			    .replace("\"Float(Some(", "")
+    			    .replace("))\"", "")
+    			    .replace("\"", "")
+    			    .parse::<f64>()
+    			    .unwrap_or(0.0);
+
+			features.push(ArchFeature {
+    			    polygon: poly,
+    			    period,
+    			    feature_type,
+    			    monument,
+    			    area,
+			});
                     }
                 }
             }
-            if polygons.is_empty() {
+
+            if features.is_empty() {
                 None
             } else {
-                Some(polygons)
+                Some(features)
             }
         }
         _ => {
@@ -135,7 +170,6 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Pol
         }
     }
 }
-
 // Process GeoJSON geometries
 fn geometry_to_polygon(geom: &Geometry) -> Option<Polygon<f64>> {
     match geom.value {
