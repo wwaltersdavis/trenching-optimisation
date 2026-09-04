@@ -2,13 +2,26 @@ use geo::{coord, Coord, MultiPolygon, Polygon};
 use std::time::Instant;
 
 #[derive(Debug)]
-pub struct TrenchLayout(pub MultiPolygon<f64>);
+pub struct TrenchLayout(
+    pub MultiPolygon<f64>,
+    pub u64,
+);
 // TODO: add impl for intersects to TrenchLayout
+
+#[derive(Debug, Clone)]
+pub struct ArchFeature {
+    pub polygon: Polygon<f64>,
+    pub period: String,
+    pub feature_type: String,
+    pub monument: String,
+    pub area: f64,
+}
 
 #[derive(Debug)]
 pub struct TestLocation {
+    pub site_name: String,
     pub limit_of_excavation: Polygon,
-    pub features: Vec<Polygon<f64>>,
+    pub features: Vec<ArchFeature>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -278,7 +291,7 @@ impl TrenchConfig {
     }
     pub fn continuous(width: f64, distribution: Distribution) -> Self {
         let structure = Structure::Parallel(Line { width });
-        let minimum_spacing = get_minimum_spacing(structure);
+        let minimum_spacing = width + 1.0;
         Self::validate_spacing(minimum_spacing, distribution);
         TrenchConfig {
             structure,
@@ -297,7 +310,7 @@ impl TrenchConfig {
                 separated: true,
             },
         );
-        let minimum_spacing = get_minimum_spacing(structure);
+        let minimum_spacing = width + 1.0;
         Self::validate_spacing(minimum_spacing, distribution);
         TrenchConfig {
             structure,
