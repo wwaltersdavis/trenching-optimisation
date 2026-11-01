@@ -1,5 +1,5 @@
-mod io;
 mod intersects;
+mod io;
 mod run;
 mod trench;
 
@@ -8,9 +8,7 @@ use trenching_optimisation::{Distribution, Percentage, TrenchConfig};
 fn main() {
     let selected_layer: Option<&str> = None;
 
-    let coverage_percentages = [
-        20.0 
-    ];
+    let coverage_percentages = [20.0];
 
     for coverage in coverage_percentages {
         let continuous = TrenchConfig::continuous(
@@ -30,20 +28,12 @@ fn main() {
             Distribution::Coverage(Percentage::new_from_percentage(coverage)),
         );
 
-	let test_pits = TrenchConfig::test_pits(
-	    1.0,
-    	    Distribution::Coverage(Percentage::new_from_percentage(coverage)),
-	);
+        let test_pits = TrenchConfig::test_pits(
+            1.0,
+            Distribution::Coverage(Percentage::new_from_percentage(coverage)),
+        );
 
-
-        for config in [
-            continuous,
-            parallel_array,
-            standard_grid,
-	    test_pits,
-        ]
-        .iter()
-        {
+        for config in [continuous, parallel_array, standard_grid, test_pits].iter() {
             run::all_loes(config, selected_layer);
         }
     }

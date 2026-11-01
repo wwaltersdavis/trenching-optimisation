@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use std::panic;
 use trenching_optimisation::{ArchFeature, TrenchLayout};
 
-fn excavated_overlap_area(
-    feature: &Polygon<f64>,
-    trenches: &TrenchLayout,
-) -> f64 {
+fn excavated_overlap_area(feature: &Polygon<f64>, trenches: &TrenchLayout) -> f64 {
     if !feature.intersects(&trenches.0) {
         return 0.0;
     }
@@ -34,10 +31,7 @@ fn excavated_overlap_area(
         let trench_as_multi = MultiPolygon(vec![trench_polygon.clone()]);
 
         let intersection_result = std::panic::catch_unwind(|| {
-            feature_as_multi.boolean_op(
-                &trench_as_multi,
-                geo::OpType::Intersection,
-            )
+            feature_as_multi.boolean_op(&trench_as_multi, geo::OpType::Intersection)
         });
 
         if let Ok(intersection) = intersection_result {
@@ -52,8 +46,7 @@ pub fn count_features_hit_or_missed(
     features: &Vec<ArchFeature>,
     trenches: &TrenchLayout,
 ) -> (i32, i32) {
-    let (found, missed, _, _, _) =
-        count_features_hit_or_missed_by_category(features, trenches);
+    let (found, missed, _, _, _) = count_features_hit_or_missed_by_category(features, trenches);
     (found, missed)
 }
 
@@ -68,11 +61,9 @@ pub fn count_features_hit_or_missed_by_category(
     let mut category_stats: HashMap<String, (i32, i32, f64, f64)> = HashMap::new();
 
     for feature in features {
-        let excavated_area =
-            excavated_overlap_area(&feature.polygon, trenches);
+        let excavated_area = excavated_overlap_area(&feature.polygon, trenches);
 
-        let unexcavated_area =
-            (feature.area - excavated_area).max(0.0);
+        let unexcavated_area = (feature.area - excavated_area).max(0.0);
 
         let found = excavated_area > 0.0;
 

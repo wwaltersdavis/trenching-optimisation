@@ -5,8 +5,8 @@ use std::time::Instant;
 
 use trenching_optimisation::{Distribution, TrenchConfig};
 
-use super::io;
 use super::intersects;
+use super::io;
 use super::trench;
 
 #[derive(Debug, Default, Clone)]
@@ -55,8 +55,7 @@ impl DetectionStats {
         let feature_total = found + missed;
 
         if feature_total > 0 {
-            let percentage =
-                found as f64 / feature_total as f64 * 100.0;
+            let percentage = found as f64 / feature_total as f64 * 100.0;
 
             self.eligible_runs += 1;
 
@@ -64,9 +63,7 @@ impl DetectionStats {
                 self.detected_runs += 1;
             }
 
-            if nominal_coverage_percent.is_finite()
-                && percentage >= nominal_coverage_percent
-            {
+            if nominal_coverage_percent.is_finite() && percentage >= nominal_coverage_percent {
                 self.nominal_feature_recovery_runs += 1;
             }
 
@@ -78,14 +75,11 @@ impl DetectionStats {
         let area_total = area_found + area_missed;
 
         if area_total > 0.0 {
-            let percentage =
-                area_found / area_total * 100.0;
+            let percentage = area_found / area_total * 100.0;
 
             self.area_eligible_runs += 1;
 
-            if nominal_coverage_percent.is_finite()
-                && percentage >= nominal_coverage_percent
-            {
+            if nominal_coverage_percent.is_finite() && percentage >= nominal_coverage_percent {
                 self.nominal_area_recovery_runs += 1;
             }
 
@@ -96,24 +90,15 @@ impl DetectionStats {
     }
 
     fn feature_percentage(&self) -> f64 {
-        percentage(
-            self.found as f64,
-            (self.found + self.missed) as f64,
-        )
+        percentage(self.found as f64, (self.found + self.missed) as f64)
     }
 
     fn area_percentage(&self) -> f64 {
-        percentage(
-            self.area_found,
-            self.area_found + self.area_missed,
-        )
+        percentage(self.area_found, self.area_found + self.area_missed)
     }
 
     fn probability_detection(&self) -> f64 {
-        percentage(
-            self.detected_runs as f64,
-            self.eligible_runs as f64,
-        )
+        percentage(self.detected_runs as f64, self.eligible_runs as f64)
     }
 
     fn probability_feature_recovery_ge_nominal(&self) -> f64 {
@@ -151,10 +136,7 @@ impl DetectionStats {
     }
 
     fn mean_run_feature_percentage(&self) -> f64 {
-        mean(
-            self.feature_percentage_sum,
-            self.eligible_runs,
-        )
+        mean(self.feature_percentage_sum, self.eligible_runs)
     }
 
     fn sd_run_feature_percentage(&self) -> f64 {
@@ -166,12 +148,8 @@ impl DetectionStats {
     }
 
     fn mean_run_area_percentage(&self) -> f64 {
-        mean(
-            self.area_percentage_sum,
-            self.area_eligible_runs,
-        )
+        mean(self.area_percentage_sum, self.area_eligible_runs)
     }
-
 
     fn sd_run_area_percentage(&self) -> f64 {
         sample_sd(
@@ -220,11 +198,10 @@ impl DetectionStats {
     fn p95_run_area_percentage(&self) -> f64 {
         percentile(&self.area_percentage_values, 0.95)
     }
-    
+
     fn mean_trenches_per_pattern(&self) -> f64 {
         if self.eligible_runs > 0 {
-            self.trenches_deployed as f64
-                / self.eligible_runs as f64
+            self.trenches_deployed as f64 / self.eligible_runs as f64
         } else {
             f64::NAN
         }
@@ -232,8 +209,7 @@ impl DetectionStats {
 
     fn features_detected_per_trench(&self) -> f64 {
         if self.trenches_deployed > 0 {
-            self.found as f64
-                / self.trenches_deployed as f64
+            self.found as f64 / self.trenches_deployed as f64
         } else {
             f64::NAN
         }
@@ -241,8 +217,7 @@ impl DetectionStats {
 
     fn excavated_feature_area_per_trench(&self) -> f64 {
         if self.trenches_deployed > 0 {
-            self.area_found
-                / self.trenches_deployed as f64
+            self.area_found / self.trenches_deployed as f64
         } else {
             f64::NAN
         }
@@ -267,9 +242,7 @@ fn mean(sum: f64, count: u64) -> f64 {
 
 fn sample_sd(sum: f64, sum_squares: f64, count: u64) -> f64 {
     if count > 1 {
-        let variance =
-            (sum_squares - (sum * sum / count as f64))
-                / (count - 1) as f64;
+        let variance = (sum_squares - (sum * sum / count as f64)) / (count - 1) as f64;
 
         variance.max(0.0).sqrt()
     } else if count == 1 {
@@ -296,8 +269,7 @@ fn percentile(values: &[f64], percentile: f64) -> f64 {
         return clean_values[0];
     }
 
-    let rank = percentile.clamp(0.0, 1.0)
-        * (clean_values.len() - 1) as f64;
+    let rank = percentile.clamp(0.0, 1.0) * (clean_values.len() - 1) as f64;
     let lower_index = rank.floor() as usize;
     let upper_index = rank.ceil() as usize;
 
@@ -305,8 +277,7 @@ fn percentile(values: &[f64], percentile: f64) -> f64 {
         clean_values[lower_index]
     } else {
         let weight = rank - lower_index as f64;
-        clean_values[lower_index] * (1.0 - weight)
-            + clean_values[upper_index] * weight
+        clean_values[lower_index] * (1.0 - weight) + clean_values[upper_index] * weight
     }
 }
 
@@ -364,7 +335,6 @@ fn write_stats_row(
     writeln!(file, "{}", row.join(",")).unwrap();
 }
 
-
 pub fn single_loe(
     config: &TrenchConfig,
     site_name: String,
@@ -418,13 +388,9 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
 
     let mut overall_stats = DetectionStats::default();
     let mut total_trenches: u64 = 0;
-    let mut category_stats: HashMap<String, DetectionStats> =
-        HashMap::new();
-    let mut site_stats: HashMap<String, DetectionStats> =
-        HashMap::new();
-    let mut site_category_stats:
-        HashMap<(String, String), DetectionStats> =
-        HashMap::new();
+    let mut category_stats: HashMap<String, DetectionStats> = HashMap::new();
+    let mut site_stats: HashMap<String, DetectionStats> = HashMap::new();
+    let mut site_category_stats: HashMap<(String, String), DetectionStats> = HashMap::new();
     let mut total_trench_creation_time = 0;
     let mut total_testing_time = 0;
 
@@ -437,7 +403,7 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
 
         match trenches {
             Some(trenches) => {
-                                let found_or_missed: Vec<(
+                let found_or_missed: Vec<(
                     i32,
                     i32,
                     f64,
@@ -449,93 +415,71 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
                     .map(|trench| {
                         let trenches_deployed = trench.1;
 
-                        let (
-                            features_found,
-                            features_missed,
-                            area_found,
-                      	    area_missed,
-                      	    categories,
-                        ) = intersects::count_features_hit_or_missed_by_category(
-                            &test_location.features,
-                            &trench,
-                        );
+                        let (features_found, features_missed, area_found, area_missed, categories) =
+                            intersects::count_features_hit_or_missed_by_category(
+                                &test_location.features,
+                                &trench,
+                            );
 
                         (
                             features_found,
                             features_missed,
                             area_found,
                             area_missed,
-			    trenches_deployed,
+                            trenches_deployed,
                             categories,
                         )
                     })
                     .collect();
 
-                for (
-    		    found,
-    		    missed,
-    		    area_found,
-    		    area_missed,
-		    trenches_deployed,
-    		    categories,
-		) in found_or_missed {
-    		    overall_stats.add_run(
-        	        found,
-        	        missed,
-        	        area_found,
-        	        area_missed,
-            		trenches_deployed,
-            		nominal_coverage_percent,
-        	    );
-    		    total_trenches += 1;
+                for (found, missed, area_found, area_missed, trenches_deployed, categories) in
+                    found_or_missed
+                {
+                    overall_stats.add_run(
+                        found,
+                        missed,
+                        area_found,
+                        area_missed,
+                        trenches_deployed,
+                        nominal_coverage_percent,
+                    );
+                    total_trenches += 1;
 
-		    site_stats
-        		.entry(test_location.site_name.clone())
-        		.or_default()
-        		.add_run(
-            		    found,
-            		    missed,
-            		    area_found,
-            		    area_missed,
-            		    trenches_deployed,
-            		    nominal_coverage_percent,
-        		);
+                    site_stats
+                        .entry(test_location.site_name.clone())
+                        .or_default()
+                        .add_run(
+                            found,
+                            missed,
+                            area_found,
+                            area_missed,
+                            trenches_deployed,
+                            nominal_coverage_percent,
+                        );
 
-    		    for (
-        		category,
-        		(
-            		    cat_found,
-            		    cat_missed,
-            		    cat_area_found,
-            		    cat_area_missed,
-        		),
-    		    ) in categories {
-        		category_stats
-            		    .entry(category.clone())
-            		    .or_default()
-            		    .add_run(
-                		cat_found,
-                		cat_missed,
-                		cat_area_found,
-                		cat_area_missed,
-            			trenches_deployed,
-            			nominal_coverage_percent,
-        		    );
+                    for (category, (cat_found, cat_missed, cat_area_found, cat_area_missed)) in
+                        categories
+                    {
+                        category_stats.entry(category.clone()).or_default().add_run(
+                            cat_found,
+                            cat_missed,
+                            cat_area_found,
+                            cat_area_missed,
+                            trenches_deployed,
+                            nominal_coverage_percent,
+                        );
 
-        		site_category_stats
-            		    .entry((
-                		test_location.site_name.clone(),
-                		category,
-            		    ))
-            		    .or_default()
-            		    .add_run(
-                		cat_found,
-                		cat_missed,
-                		cat_area_found,
-                		cat_area_missed,
-            			trenches_deployed,
-            			nominal_coverage_percent,
-        		    );
+                        site_category_stats
+                            .entry((test_location.site_name.clone(), category))
+                            .or_default()
+                            .add_run(
+                                cat_found,
+                                cat_missed,
+                                cat_area_found,
+                                cat_area_missed,
+                                trenches_deployed,
+                                nominal_coverage_percent,
+                            );
                     }
                 }
             }
@@ -557,7 +501,6 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
         total_testing_time as f64 / 1000.0
     );
 
-
     println!(
         "Total features found: {}, total features missed: {}, percentage found: {:.2}%",
         overall_stats.found,
@@ -565,10 +508,7 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
         overall_stats.feature_percentage()
     );
 
-    println!(
-        "Total trench patterns tested: {}",
-        total_trenches
-    );
+    println!("Total trench patterns tested: {}", total_trenches);
 
     let distribution_label = match config.distribution {
         trenching_optimisation::Distribution::Spacing(value) => {
@@ -581,12 +521,10 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
 
     let output_path = format!(
         "../data/results_{:?}_{}.csv",
-        config.pattern_name,
-        distribution_label
+        config.pattern_name, distribution_label
     );
 
-    let mut file =
-        fs_err::File::create(&output_path).unwrap();
+    let mut file = fs_err::File::create(&output_path).unwrap();
 
     writeln!(
         file,
@@ -630,7 +568,8 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
             "p50_run_percentage_area_found",
             "p75_run_percentage_area_found",
             "p95_run_percentage_area_found",
-        ].join(",")
+        ]
+        .join(",")
     )
     .unwrap();
 
@@ -646,8 +585,7 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
     );
 
     for ((site, category), stats) in site_category_stats {
-        let parts: Vec<&str> =
-            category.splitn(2, "::").collect();
+        let parts: Vec<&str> = category.splitn(2, "::").collect();
 
         write_stats_row(
             &mut file,
@@ -675,8 +613,7 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
     }
 
     for (category, stats) in category_stats {
-        let parts: Vec<&str> =
-            category.splitn(2, "::").collect();
+        let parts: Vec<&str> = category.splitn(2, "::").collect();
 
         write_stats_row(
             &mut file,

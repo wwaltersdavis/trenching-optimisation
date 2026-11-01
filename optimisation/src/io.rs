@@ -18,11 +18,11 @@ pub fn read_single_test_location_data(
     match process_geojson(&gj, selected_layer) {
         Some(features) => {
             println!("Reading files took: {:?}", now.elapsed());
-	    Ok(TestLocation {
-    		site_name,
-    		limit_of_excavation,
-    		features,
-	    })
+            Ok(TestLocation {
+                site_name,
+                limit_of_excavation,
+                features,
+            })
         }
         None => Err(anyhow!(
             "No {:?} at site: {} location: {}",
@@ -78,11 +78,11 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
     let mut test_locations = Vec::new();
 
     let sites_location_counts = [
-    ("A355_BeaconsfieldEasternReliefRoad", 3),
-    ("Galloper", 1),
-    ("Heathrow", 5),
-    ("Stansted", 17),
-    ("wingerworth", 2),
+        ("A355_BeaconsfieldEasternReliefRoad", 3),
+        ("Galloper", 1),
+        ("Heathrow", 5),
+        ("Stansted", 17),
+        ("wingerworth", 2),
     ];
     for (site, location_count) in sites_location_counts.iter() {
         for i in 0..*location_count {
@@ -90,10 +90,10 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
             let features = read_single_features_geojson(site.to_string(), i.to_string())?;
             match process_geojson(&features, selected_layer) {
                 Some(polygons) => {
-		    test_locations.push(TestLocation {
-    			site_name: site.to_string(),
-    			limit_of_excavation,
-    			features: polygons,
+                    test_locations.push(TestLocation {
+                        site_name: site.to_string(),
+                        limit_of_excavation,
+                        features: polygons,
                     });
                 }
                 None => {
@@ -131,29 +131,29 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Arc
                             .unwrap_or_else(|| "Unknown".to_string());
 
                         let monument = feature
-    			    .property("MONUMENT")
-    			    .map(|v| v.to_string())
-    			    .unwrap_or_else(|| "Unknown".to_string());
+                            .property("MONUMENT")
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "Unknown".to_string());
 
-			let area_text = feature
-    			    .property("POLY_AREA")
-    			    .map(|v| v.to_string())
+                        let area_text = feature
+                            .property("POLY_AREA")
+                            .map(|v| v.to_string())
                             .unwrap_or_else(|| "0".to_string());
 
-			let area = area_text
-    			    .replace("\"Float(Some(", "")
-    			    .replace("))\"", "")
-    			    .replace("\"", "")
-    			    .parse::<f64>()
-    			    .unwrap_or(0.0);
+                        let area = area_text
+                            .replace("\"Float(Some(", "")
+                            .replace("))\"", "")
+                            .replace("\"", "")
+                            .parse::<f64>()
+                            .unwrap_or(0.0);
 
-			features.push(ArchFeature {
-    			    polygon: poly,
-    			    period,
-    			    feature_type,
-    			    monument,
-    			    area,
-			});
+                        features.push(ArchFeature {
+                            polygon: poly,
+                            period,
+                            feature_type,
+                            monument,
+                            area,
+                        });
                     }
                 }
             }
