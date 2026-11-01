@@ -1,8 +1,6 @@
-
 use geo::{
-    coord, Area, BooleanOps, Centroid, EuclideanDistance, Intersects,
-    LineString, MultiPolygon, Point, Polygon,
-    Rotate, Translate,
+    coord, Area, BooleanOps, Centroid, EuclideanDistance, Intersects, LineString, MultiPolygon,
+    Point, Polygon, Rotate, Translate,
 };
 use rayon::prelude::*;
 use std::panic;
@@ -51,12 +49,12 @@ fn estimate_spacing(config: &TrenchConfig, coverage: &Percentage) -> f64 {
         Structure::Array(rectangle, array_config) => {
             if array_config.separated {
                 let y_spacing = rectangle.length + 1.0;
-        	(rectangle.width * rectangle.length)
-            	    / (coverage.percentage_as_decimal() * y_spacing)
-    	    } else {
-        	((rectangle.width * rectangle.length) / (coverage.percentage_as_decimal())).sqrt()
-    	    }
-	}
+                (rectangle.width * rectangle.length)
+                    / (coverage.percentage_as_decimal() * y_spacing)
+            } else {
+                ((rectangle.width * rectangle.length) / (coverage.percentage_as_decimal())).sqrt()
+            }
+        }
     }
 }
 
@@ -76,10 +74,8 @@ fn trench_of_array_coordinate(
         spacing
     };
 
-    let trench_centroid = centroid.translate(
-        x_offset as f64 * spacing,
-        y_offset as f64 * y_spacing,
-    );
+    let trench_centroid =
+        centroid.translate(x_offset as f64 * spacing, y_offset as f64 * y_spacing);
     let is_alternate_point = (x_index + y_index).is_multiple_of(2);
     let rotation = match array_config.pattern_rotation_axis {
         PatternRotationAxis::ByCell => {
@@ -247,14 +243,8 @@ fn get_max_distance_from_centroid(centroid: Point, limit_of_excavation: &Polygon
             });
     max_distance_from_centroid
 }
-fn safe_intersection(
-    a: &MultiPolygon<f64>,
-    b: &MultiPolygon<f64>,
-) -> Option<MultiPolygon<f64>> {
-    panic::catch_unwind(|| {
-        a.boolean_op(b, geo::OpType::Intersection)
-    })
-    .ok()
+fn safe_intersection(a: &MultiPolygon<f64>, b: &MultiPolygon<f64>) -> Option<MultiPolygon<f64>> {
+    panic::catch_unwind(|| a.boolean_op(b, geo::OpType::Intersection)).ok()
 }
 
 fn calculate_coverage(
@@ -275,8 +265,7 @@ fn get_rotated_trench_patterns(
     (0..rotations)
         .into_par_iter()
         .filter_map(|rotation| {
-            let trench_pattern =
-                trenches.rotate_around_point(rotation as f64, centroid);
+            let trench_pattern = trenches.rotate_around_point(rotation as f64, centroid);
             let trenches_deployed = trench_pattern
                 .0
                 .iter()
@@ -287,7 +276,10 @@ fn get_rotated_trench_patterns(
             let Some(intersection) =
                 safe_intersection(&limit_of_excavation_as_multi, &trench_pattern)
             else {
-                println!("Skipped rotation {} because site intersection failed", rotation);
+                println!(
+                    "Skipped rotation {} because site intersection failed",
+                    rotation
+                );
                 return None;
             };
 
@@ -317,13 +309,11 @@ fn adjust_trench_layout_to_coverage(
     let mut iteration = 0;
     let mut current_spacing = estimated_spacing;
     let mut current_trench_pattern = trench_pattern.rotate_around_point(rotation as f64, centroid);
-    let Some(mut intersection) =
-        safe_intersection(limit_of_excavation, &current_trench_pattern)
+    let Some(mut intersection) = safe_intersection(limit_of_excavation, &current_trench_pattern)
     else {
         println!(
             "No trenches created for {:?}: initial site intersection failed at rotation {}",
-            config.pattern_name,
-            rotation
+            config.pattern_name, rotation
         );
         return None;
     };
@@ -347,14 +337,12 @@ fn adjust_trench_layout_to_coverage(
 
         // check spacing is not too small
         if spacing_smaller_than_minimum(&current_spacing, &config.minimum_spacing) {
-    	    println!(
-        	"Spacing too small for {:?}: target {:.2} current {:.2}",
-        	config.pattern_name,
-        	target_coverage,
-        	current_coverage
-    	    );
-    	    return None;
-	}
+            println!(
+                "Spacing too small for {:?}: target {:.2} current {:.2}",
+                config.pattern_name, target_coverage, current_coverage
+            );
+            return None;
+        }
 
         current_trench_pattern = get_layout_from_spacing(
             *config,
@@ -394,10 +382,7 @@ fn adjust_trench_layout_to_coverage(
     } else {
         println!(
             "Failed {:?}: target {:.2} achieved {:.2} after {} iterations",
-            config.pattern_name,
-            target_coverage,
-            current_coverage,
-            iteration
+            config.pattern_name, target_coverage, current_coverage, iteration
         );
         None
     }
