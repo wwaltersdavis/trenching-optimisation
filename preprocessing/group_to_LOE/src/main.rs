@@ -100,7 +100,7 @@ fn save_feature_collection_to_geojson(
     let writer = BufWriter::new(file);
     let feature_collection = FeatureCollection {
         bbox: None,
-        features: features,
+        features,
         foreign_members: None,
     };
     serde_json::to_writer(writer, &GeoJson::FeatureCollection(feature_collection))?;
@@ -138,15 +138,11 @@ fn compare_loe_to_feature(loe_polygon: Polygon, geom: &Geometry) -> bool {
                 })
                 .collect::<Vec<Coord>>();
             let poly = Polygon::new(LineString(poly_exterior), vec![]);
-            if poly.intersects(&loe_polygon) {
-                return true;
-            } else {
-                return false;
-            }
+            poly.intersects(&loe_polygon)
         }
         _ => {
             println!("Non Polygon GeoJSON not supported");
-            return false;
+            false
         }
     }
 }

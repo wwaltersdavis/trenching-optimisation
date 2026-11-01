@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow.workspace = true
 shapefile-to-geojson = "0.1.4"
-anyhow = "1.0.79"
 tokio = { version = "1.0", features = ["full"] }
