@@ -2,8 +2,10 @@ use geo::{coord, Coord, MultiPolygon, Polygon};
 use std::time::Instant;
 
 #[derive(Debug)]
-pub struct TrenchLayout(pub MultiPolygon<f64>, pub u64);
-// TODO: add impl for intersects to TrenchLayout
+pub struct TrenchLayout {
+    pub layout: MultiPolygon<f64>,
+    pub trenches_deployed: u64,
+}
 
 #[derive(Debug, Clone)]
 pub struct ArchFeature {

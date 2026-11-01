@@ -1,10 +1,9 @@
 use geo::{Area, BooleanOps, BoundingRect, Intersects, MultiPolygon, Polygon};
 use std::collections::HashMap;
-use std::panic;
 use trenching_optimisation::{ArchFeature, TrenchLayout};
 
 fn excavated_overlap_area(feature: &Polygon<f64>, trenches: &TrenchLayout) -> f64 {
-    if !feature.intersects(&trenches.0) {
+    if !feature.intersects(&trenches.layout) {
         return 0.0;
     }
 
@@ -15,7 +14,7 @@ fn excavated_overlap_area(feature: &Polygon<f64>, trenches: &TrenchLayout) -> f6
     let feature_as_multi = MultiPolygon(vec![feature.clone()]);
     let mut total_overlap_area = 0.0;
 
-    for trench_polygon in &trenches.0 .0 {
+    for trench_polygon in &trenches.layout {
         let Some(trench_bbox) = trench_polygon.bounding_rect() else {
             continue;
         };
@@ -30,6 +29,7 @@ fn excavated_overlap_area(feature: &Polygon<f64>, trenches: &TrenchLayout) -> f6
 
         let trench_as_multi = MultiPolygon(vec![trench_polygon.clone()]);
 
+        // TODO: use fn `safe_intersection` function from trench.rs.
         let intersection_result = std::panic::catch_unwind(|| {
             feature_as_multi.boolean_op(&trench_as_multi, geo::OpType::Intersection)
         });
@@ -42,18 +42,49 @@ fn excavated_overlap_area(feature: &Polygon<f64>, trenches: &TrenchLayout) -> f6
     total_overlap_area
 }
 
+pub struct FeaturesStats {
+    pub features_found: i32,
+    pub features_missed: i32,
+    pub area_found: f64,
+    pub area_missed: f64,
+    pub trenches_deployed: u64,
+    pub category_stats: HashMap<String, (i32, i32, f64, f64)>,
+}
+
+impl FeaturesStats {
+    // TODO: Remove this hacky solution with the nested category stats.
+    pub fn to_category_stats(&self) -> Vec<(String, Self)> {
+        self.category_stats
+            .iter()
+            .map(|(category, cs)| {
+                (
+                    category.clone(),
+                    FeaturesStats {
+                        features_found: cs.0,
+                        features_missed: cs.1,
+                        area_found: cs.2,
+                        area_missed: cs.3,
+                        trenches_deployed: self.trenches_deployed,
+                        category_stats: HashMap::new(),
+                    },
+                )
+            })
+            .collect()
+    }
+}
+
 pub fn count_features_hit_or_missed(
     features: &Vec<ArchFeature>,
     trenches: &TrenchLayout,
 ) -> (i32, i32) {
-    let (found, missed, _, _, _) = count_features_hit_or_missed_by_category(features, trenches);
-    (found, missed)
+    let feature_stats = count_features_hit_or_missed_by_category(features, trenches);
+    (feature_stats.features_found, feature_stats.features_missed)
 }
 
 pub fn count_features_hit_or_missed_by_category(
     features: &Vec<ArchFeature>,
     trenches: &TrenchLayout,
-) -> (i32, i32, f64, f64, HashMap<String, (i32, i32, f64, f64)>) {
+) -> FeaturesStats {
     let mut features_found = 0;
     let mut features_missed = 0;
     let mut area_found = 0.0;
@@ -94,11 +125,12 @@ pub fn count_features_hit_or_missed_by_category(
         }
     }
 
-    (
+    FeaturesStats {
         features_found,
         features_missed,
         area_found,
         area_missed,
+        trenches_deployed: trenches.trenches_deployed,
         category_stats,
-    )
+    }
 }

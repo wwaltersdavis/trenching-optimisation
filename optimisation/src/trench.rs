@@ -1,5 +1,5 @@
 use geo::{
-    coord, Area, BooleanOps, Centroid, EuclideanDistance, Intersects, LineString, MultiPolygon,
+    coord, Area, BooleanOps, Centroid, Distance, Euclidean, Intersects, LineString, MultiPolygon,
     Point, Polygon, Rotate, Translate,
 };
 use rayon::prelude::*;
@@ -234,7 +234,7 @@ fn get_max_distance_from_centroid(centroid: Point, limit_of_excavation: &Polygon
             .exterior()
             .points()
             .fold(0.0, |max_distance_from_centroid, p| {
-                let distance = centroid.euclidean_distance(&p);
+                let distance = Euclidean.distance(centroid, p);
                 if distance > max_distance_from_centroid {
                     distance
                 } else {
@@ -267,7 +267,6 @@ fn get_rotated_trench_patterns(
         .filter_map(|rotation| {
             let trench_pattern = trenches.rotate_around_point(rotation as f64, centroid);
             let trenches_deployed = trench_pattern
-                .0
                 .iter()
                 .filter(|polygon| polygon.intersects(limit_of_excavation))
                 .count() as u64;
@@ -286,7 +285,10 @@ fn get_rotated_trench_patterns(
             let _percentage_coverage =
                 calculate_coverage(&intersection, &limit_of_excavation_as_multi);
 
-            Some(TrenchLayout(intersection, trenches_deployed))
+            Some(TrenchLayout {
+                layout: intersection,
+                trenches_deployed,
+            })
         })
         .collect()
     // TODO: return average percentage coverage
@@ -327,7 +329,7 @@ fn adjust_trench_layout_to_coverage(
         // println!("Current coverage: {}", current_coverage);
 
         // adjust current_spacing to get closer to target_coverage
-        let adjustment_factor = 0.82_f64.powf(iteration as f64);
+        let adjustment_factor = 0.90_f64.powf(iteration as f64); // Bumped this from 0.82 due to the increase in iterations.
         let error = (target_coverage - current_coverage) / target_coverage;
         if error < 0.0 {
             current_spacing *= 1.0 + -error * adjustment_factor;
@@ -373,12 +375,13 @@ fn adjust_trench_layout_to_coverage(
     if check_coverage(current_coverage, target_coverage) {
         // Count the individual trenches or pits that intersect the site.
         let trenches_deployed = current_trench_pattern
-            .0
             .iter()
             .filter(|polygon| polygon.intersects(limit_of_excavation))
             .count() as u64;
-
-        Some(TrenchLayout(intersection, trenches_deployed))
+        Some(TrenchLayout {
+            layout: intersection,
+            trenches_deployed,
+        })
     } else {
         println!(
             "Failed {:?}: target {:.2} achieved {:.2} after {} iterations",
