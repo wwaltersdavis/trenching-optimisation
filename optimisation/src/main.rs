@@ -8,7 +8,7 @@ use trenching_optimisation::{Distribution, Percentage, TrenchConfig};
 fn main() {
     let selected_layer: Option<&str> = None;
 
-    let coverage_percentages = [20.0];
+    let coverage_percentages = [10.0];
 
     for coverage in coverage_percentages {
         let continuous = TrenchConfig::continuous(

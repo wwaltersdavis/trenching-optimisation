@@ -1,13 +1,10 @@
+use crate::{intersects, io, trench};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::io::Write;
 use std::time::Instant;
 
 use trenching_optimisation::{Distribution, TrenchConfig};
-
-use super::intersects;
-use super::io;
-use super::trench;
 
 #[derive(Debug, Default, Clone)]
 struct DetectionStats {
@@ -39,27 +36,23 @@ struct DetectionStats {
 impl DetectionStats {
     fn add_run(
         &mut self,
-        found: i32,
-        missed: i32,
-        area_found: f64,
-        area_missed: f64,
-        trenches_deployed: u64,
+        features_stats: &intersects::FeaturesStats,
         nominal_coverage_percent: f64,
     ) {
-        self.found += found as i64;
-        self.missed += missed as i64;
-        self.area_found += area_found;
-        self.area_missed += area_missed;
-        self.trenches_deployed += trenches_deployed;
+        self.found += features_stats.features_found as i64;
+        self.missed += features_stats.features_missed as i64;
+        self.area_found += features_stats.area_found;
+        self.area_missed += features_stats.area_missed;
+        self.trenches_deployed += features_stats.trenches_deployed;
 
-        let feature_total = found + missed;
+        let feature_total = features_stats.features_found + features_stats.features_missed;
 
         if feature_total > 0 {
-            let percentage = found as f64 / feature_total as f64 * 100.0;
+            let percentage = features_stats.features_found as f64 / feature_total as f64 * 100.0;
 
             self.eligible_runs += 1;
 
-            if found > 0 {
+            if features_stats.features_found > 0 {
                 self.detected_runs += 1;
             }
 
@@ -72,10 +65,10 @@ impl DetectionStats {
             self.feature_percentage_values.push(percentage);
         }
 
-        let area_total = area_found + area_missed;
+        let area_total = features_stats.area_found + features_stats.area_missed;
 
         if area_total > 0.0 {
-            let percentage = area_found / area_total * 100.0;
+            let percentage = features_stats.area_found / area_total * 100.0;
 
             self.area_eligible_runs += 1;
 
@@ -403,83 +396,38 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
 
         match trenches {
             Some(trenches) => {
-                let found_or_missed: Vec<(
-                    i32,
-                    i32,
-                    f64,
-                    f64,
-                    u64,
-                    HashMap<String, (i32, i32, f64, f64)>,
-                )> = trenches
+                let all_features_stats: Vec<intersects::FeaturesStats> = trenches
                     .into_par_iter()
                     .map(|trench| {
-                        let trenches_deployed = trench.1;
-
-                        let (features_found, features_missed, area_found, area_missed, categories) =
-                            intersects::count_features_hit_or_missed_by_category(
-                                &test_location.features,
-                                &trench,
-                            );
-
-                        (
-                            features_found,
-                            features_missed,
-                            area_found,
-                            area_missed,
-                            trenches_deployed,
-                            categories,
+                        intersects::count_features_hit_or_missed_by_category(
+                            &test_location.features,
+                            &trench,
                         )
                     })
                     .collect();
 
-                for (found, missed, area_found, area_missed, trenches_deployed, categories) in
-                    found_or_missed
-                {
-                    overall_stats.add_run(
-                        found,
-                        missed,
-                        area_found,
-                        area_missed,
-                        trenches_deployed,
-                        nominal_coverage_percent,
-                    );
+                for features_stats in all_features_stats {
+                    overall_stats.add_run(&features_stats, nominal_coverage_percent);
                     total_trenches += 1;
 
                     site_stats
                         .entry(test_location.site_name.clone())
                         .or_default()
-                        .add_run(
-                            found,
-                            missed,
-                            area_found,
-                            area_missed,
-                            trenches_deployed,
-                            nominal_coverage_percent,
-                        );
+                        .add_run(&features_stats, nominal_coverage_percent);
 
-                    for (category, (cat_found, cat_missed, cat_area_found, cat_area_missed)) in
-                        categories
-                    {
-                        category_stats.entry(category.clone()).or_default().add_run(
-                            cat_found,
-                            cat_missed,
-                            cat_area_found,
-                            cat_area_missed,
-                            trenches_deployed,
-                            nominal_coverage_percent,
-                        );
+                    // for (category, (cat_found, cat_missed, cat_area_found, cat_area_missed)) in
+                    //     features_stats.category_stats
+                    // {
+                    for (category, stats) in features_stats.to_category_stats() {
+                        category_stats
+                            .entry(category.clone())
+                            .or_default()
+                            .add_run(&stats, nominal_coverage_percent);
 
                         site_category_stats
                             .entry((test_location.site_name.clone(), category))
                             .or_default()
-                            .add_run(
-                                cat_found,
-                                cat_missed,
-                                cat_area_found,
-                                cat_area_missed,
-                                trenches_deployed,
-                                nominal_coverage_percent,
-                            );
+                            .add_run(&stats, nominal_coverage_percent);
                     }
                 }
             }
@@ -512,10 +460,10 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) {
 
     let distribution_label = match config.distribution {
         trenching_optimisation::Distribution::Spacing(value) => {
-            format!("spacing_{}m", value)
+            format!("spacing_{}m", value).to_string()
         }
         trenching_optimisation::Distribution::Coverage(value) => {
-            format!("coverage_{}pct", value.0)
+            format!("coverage_{}pct", value.0).to_string()
         }
     };
 
