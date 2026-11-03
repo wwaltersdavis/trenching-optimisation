@@ -79,7 +79,7 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
 
     let sites_location_counts = [
         ("A355_BeaconsfieldEasternReliefRoad", 3),
-        // ("Galloper", 1),
+        ("Galloper", 1),
         ("Heathrow", 5),
         ("Stansted", 17),
         ("wingerworth", 2),
