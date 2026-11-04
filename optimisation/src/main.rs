@@ -1,11 +1,13 @@
+mod detection_stats;
 mod intersects;
 mod io;
 mod run;
 mod trench;
 
+use anyhow::Result;
 use trenching_optimisation::{Distribution, Percentage, TrenchConfig};
 
-fn main() {
+fn main() -> Result<()> {
     let selected_layer: Option<&str> = None;
 
     let coverage_percentages = [10.0];
@@ -34,7 +36,8 @@ fn main() {
         );
 
         for config in [continuous, parallel_array, standard_grid, test_pits].iter() {
-            run::all_loes(config, selected_layer);
+            run::all_loes(config, selected_layer)?;
         }
     }
+    Ok(())
 }
