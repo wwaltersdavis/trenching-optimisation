@@ -7,32 +7,6 @@ use std::time::Instant;
 
 use trenching_optimisation::{ArchFeature, TestLocation};
 
-pub fn read_single_test_location_data(
-    site_name: String,
-    loe_i: String,
-    selected_layer: Option<&str>,
-) -> Result<TestLocation> {
-    let now = Instant::now();
-    let limit_of_excavation = read_single_loe_feature(site_name.clone(), loe_i.clone())?;
-    let gj = read_single_features_geojson(site_name.clone(), loe_i.clone())?;
-    match process_geojson(&gj, selected_layer) {
-        Some(features) => {
-            println!("Reading files took: {:?}", now.elapsed());
-            Ok(TestLocation {
-                site_name,
-                limit_of_excavation,
-                features,
-            })
-        }
-        None => Err(anyhow!(
-            "No {:?} at site: {} location: {}",
-            selected_layer,
-            site_name,
-            loe_i
-        )),
-    }
-}
-
 fn read_single_features_geojson(site_name: String, loe_i: String) -> Result<GeoJson> {
     let file = File::open(format!(
         "../data/grouped_by_loe/{}/{}/features.geojson",

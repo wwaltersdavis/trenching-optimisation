@@ -271,6 +271,19 @@ pub enum PatternName {
     CentreLine,
 }
 
+impl PatternName {
+    pub fn as_str(&self) -> &str {
+        match self {
+            PatternName::Continuous => "Continuous",
+            PatternName::ParallelArray => "ParallelArray",
+            PatternName::StandardGrid => "StandardGrid",
+            PatternName::TestPits => "TestPits",
+            PatternName::Herringbone => "Herringbone",
+            PatternName::CentreLine => "CentreLine",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct TrenchConfig {
     // TODO: add shifts in x/y
