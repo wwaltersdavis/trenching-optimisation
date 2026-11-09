@@ -50,7 +50,7 @@ fn estimate_spacing(config: &TrenchConfig, coverage: &Percentage) -> f64 {
             if array_config.separated {
                 let y_spacing = rectangle.length + 1.0;
                 (rectangle.width * rectangle.length)
-                    / (coverage.percentage_as_decimal() * y_spacing)
+                    / (coverage.percentage_as_decimal() * y_spacing * 2.0)
             } else {
                 ((rectangle.width * rectangle.length) / (coverage.percentage_as_decimal())).sqrt()
             }
