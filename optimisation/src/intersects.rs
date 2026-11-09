@@ -73,14 +73,6 @@ impl FeaturesStats {
     }
 }
 
-pub fn count_features_hit_or_missed(
-    features: &Vec<ArchFeature>,
-    trenches: &TrenchLayout,
-) -> (i32, i32) {
-    let feature_stats = count_features_hit_or_missed_by_category(features, trenches);
-    (feature_stats.features_found, feature_stats.features_missed)
-}
-
 pub fn count_features_hit_or_missed_by_category(
     features: &Vec<ArchFeature>,
     trenches: &TrenchLayout,

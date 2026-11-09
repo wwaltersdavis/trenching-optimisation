@@ -1,55 +1,14 @@
 use crate::{
-    detection_stats::{write_stats_row, DetectionStats},
-    intersects, io, trench,
+    intersects, io,
+    statistics::{write_to_csv, DetectionStats},
+    trench,
 };
 use anyhow::Result;
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::io::Write;
 use std::time::Instant;
 
 use trenching_optimisation::{Distribution, TrenchConfig};
-
-pub fn single_loe(
-    config: &TrenchConfig,
-    site_name: String,
-    loe_i: String,
-    selected_layer: Option<&str>,
-) -> Result<()> {
-    println!("\nRunning {:?} on single LOE", config.pattern_name);
-    let test_location = io::read_single_test_location_data(site_name, loe_i, selected_layer);
-    match test_location {
-        Ok(test_location) => {
-            let now = Instant::now();
-            let trenches = trench::create_layouts(config, test_location.limit_of_excavation);
-            println!("Creating trenches took: {:?}", now.elapsed());
-            match trenches {
-                Some(trenches) => {
-                    let now = Instant::now();
-                    let _: Vec<(i32, i32)> = trenches
-                        .into_par_iter()
-                        .map(|trench| {
-                            let (features_found, features_missed) =
-                                intersects::count_features_hit_or_missed(
-                                    &test_location.features,
-                                    &trench,
-                                );
-                            (features_found, features_missed)
-                        })
-                        .collect();
-                    println!("Calculating features hit took: {:?}", now.elapsed());
-                }
-                None => {
-                    println!("No trenches created for LOE");
-                }
-            }
-        }
-        Err(e) => {
-            println!("{:?}", e);
-        }
-    }
-    Ok(())
-}
 
 pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) -> Result<()> {
     println!("\nRunning {:?} on all LOEs", config.pattern_name);
@@ -152,107 +111,16 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) -> Result<(
         config.pattern_name, distribution_label
     );
 
-    let mut file = fs_err::File::create(&output_path)?;
-
-    writeln!(
-        file,
-        "{}",
-        [
-            "site",
-            "pattern",
-            "distribution",
-            "category",
-            "category_value",
-            "found",
-            "missed",
-            "percentage_found",
-            "area_found",
-            "area_missed",
-            "percentage_area_found",
-            "trench_patterns_tested",
-            "trenches_deployed",
-            "mean_trenches_per_pattern",
-            "features_detected_per_trench",
-            "excavated_feature_area_per_trench_m2",
-            "eligible_runs",
-            "detected_runs",
-            "probability_detection",
-            "probability_feature_recovery_ge_nominal",
-            "probability_area_recovery_ge_nominal",
-            "coefficient_of_variation_feature_recovery",
-            "coefficient_of_variation_area_recovery",
-            "mean_run_percentage_found",
-            "sd_run_percentage_found",
-            "p05_run_percentage_found",
-            "p25_run_percentage_found",
-            "p50_run_percentage_found",
-            "p75_run_percentage_found",
-            "p95_run_percentage_found",
-            "area_eligible_runs",
-            "mean_run_percentage_area_found",
-            "sd_run_percentage_area_found",
-            "p05_run_percentage_area_found",
-            "p25_run_percentage_area_found",
-            "p50_run_percentage_area_found",
-            "p75_run_percentage_area_found",
-            "p95_run_percentage_area_found",
-        ]
-        .join(",")
-    )?;
-
-    write_stats_row(
-        &mut file,
-        "ALL_SITES",
+    write_to_csv(
+        output_path.as_str(),
         config,
-        &distribution_label,
-        "TOTAL",
-        "ALL",
-        &overall_stats,
+        distribution_label.as_str(),
         total_trenches,
-    );
-
-    for ((site, category), stats) in site_category_stats {
-        let parts: Vec<&str> = category.splitn(2, "::").collect();
-
-        write_stats_row(
-            &mut file,
-            &site,
-            config,
-            &distribution_label,
-            parts[0],
-            parts[1],
-            &stats,
-            total_trenches,
-        );
-    }
-
-    for (site, stats) in site_stats {
-        write_stats_row(
-            &mut file,
-            &site,
-            config,
-            &distribution_label,
-            "TOTAL",
-            "ALL",
-            &stats,
-            total_trenches,
-        );
-    }
-
-    for (category, stats) in category_stats {
-        let parts: Vec<&str> = category.splitn(2, "::").collect();
-
-        write_stats_row(
-            &mut file,
-            "ALL_SITES",
-            config,
-            &distribution_label,
-            parts[0],
-            parts[1],
-            &stats,
-            total_trenches,
-        );
-    }
+        overall_stats,
+        site_stats,
+        category_stats,
+        site_category_stats,
+    )?;
 
     println!("Saved CSV: {}", output_path);
     println!("Testing took: {:?}", now.elapsed());

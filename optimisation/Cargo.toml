@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+csv = "1.4.0"
 fs-err.workspace = true
 geo.workspace = true
 geojson.workspace = true
