@@ -9,7 +9,7 @@ pub struct TrenchLayout {
 
 #[derive(Debug, Clone)]
 pub struct ArchFeature {
-    pub polygon: Polygon<f64>,
+    pub polygon: MultiPolygon<f64>,
     pub period: String,
     pub feature_type: String,
     pub monument: String,

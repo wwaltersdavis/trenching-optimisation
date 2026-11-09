@@ -1,47 +1,21 @@
-use geo::{Area, BooleanOps, BoundingRect, Intersects, MultiPolygon, Polygon};
+use geo::{Area, BooleanOps, Intersects, MultiPolygon};
 use std::collections::HashMap;
 use trenching_optimisation::{ArchFeature, TrenchLayout};
 
-fn excavated_overlap_area(feature: &Polygon<f64>, trenches: &TrenchLayout) -> f64 {
+fn excavated_overlap_area(feature: &MultiPolygon<f64>, trenches: &TrenchLayout) -> f64 {
     if !feature.intersects(&trenches.layout) {
         return 0.0;
     }
 
-    let Some(feature_bbox) = feature.bounding_rect() else {
-        return 0.0;
-    };
+    let intersection_result = std::panic::catch_unwind(|| {
+        feature.boolean_op(&trenches.layout, geo::OpType::Intersection)
+    });
 
-    let feature_as_multi = MultiPolygon(vec![feature.clone()]);
-    let mut total_overlap_area = 0.0;
-
-    for trench_polygon in &trenches.layout {
-        let Some(trench_bbox) = trench_polygon.bounding_rect() else {
-            continue;
-        };
-
-        if !feature_bbox.intersects(&trench_bbox) {
-            continue;
-        }
-
-        if !feature.intersects(trench_polygon) {
-            continue;
-        }
-
-        let trench_as_multi = MultiPolygon(vec![trench_polygon.clone()]);
-
-        // TODO: use fn `safe_intersection` function from trench.rs.
-        let intersection_result = std::panic::catch_unwind(|| {
-            feature_as_multi.boolean_op(&trench_as_multi, geo::OpType::Intersection)
-        });
-
-        if let Ok(intersection) = intersection_result {
-            total_overlap_area += intersection.unsigned_area();
-        }
+    match intersection_result {
+        Ok(intersection) => intersection.unsigned_area(),
+        Err(_) => 0.0,
     }
-
-    total_overlap_area
 }
-
 pub struct FeaturesStats {
     pub features_found: i32,
     pub features_missed: i32,
@@ -72,7 +46,6 @@ impl FeaturesStats {
             .collect()
     }
 }
-
 pub fn count_features_hit_or_missed(
     features: &Vec<ArchFeature>,
     trenches: &TrenchLayout,

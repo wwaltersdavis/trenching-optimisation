@@ -46,11 +46,15 @@ fn main() -> Result<()> {
                         let mut feature = feature.clone();
                         // standardise the Layer names
                         if feature.contains_property("LANDSCAPE") {
-                            feature.set_property("Layer", feature.property("LANDSCAPE").unwrap().clone());
+                            feature.set_property(
+                                "Layer",
+                                feature.property("LANDSCAPE").unwrap().clone(),
+                            );
                             feature.remove_property("LANDSCAPE");
                         }
                         if feature.contains_property("Phase") {
-                            feature.set_property("Layer", feature.property("Phase").unwrap().clone());
+                            feature
+                                .set_property("Layer", feature.property("Phase").unwrap().clone());
                             feature.remove_property("Phase");
                         }
                         loe_feature_collections[i].push(feature);
@@ -128,20 +132,36 @@ fn read_raw_geojson(file_name: String) -> Result<GeoJson> {
     Ok(gj)
 }
 
+fn ring_intersects_loe(loe_polygon: &Polygon, ring: &[Vec<f64>]) -> bool {
+    if ring.len() < 3 {
+        return false;
+    }
+
+    let exterior = ring
+        .iter()
+        .map(|c| coord! { x: c[0], y: c[1] })
+        .collect::<Vec<Coord>>();
+
+    let polygon = Polygon::new(LineString(exterior), vec![]);
+    polygon.intersects(loe_polygon)
+}
+
+fn polygon_intersects_loe(loe_polygon: &Polygon, rings: &[Vec<Vec<f64>>]) -> bool {
+    rings
+        .iter()
+        .any(|ring| ring_intersects_loe(loe_polygon, ring))
+}
+
 fn compare_loe_to_feature(loe_polygon: Polygon, geom: &Geometry) -> bool {
-    match geom.value {
-        Value::Polygon(ref polygon) => {
-            let poly_exterior = polygon[0]
-                .iter()
-                .map(|c| {
-                    coord! { x: c[0], y: c[1] }
-                })
-                .collect::<Vec<Coord>>();
-            let poly = Polygon::new(LineString(poly_exterior), vec![]);
-            poly.intersects(&loe_polygon)
-        }
+    match &geom.value {
+        Value::Polygon(rings) => polygon_intersects_loe(&loe_polygon, rings),
+
+        Value::MultiPolygon(polygons) => polygons
+            .iter()
+            .any(|rings| polygon_intersects_loe(&loe_polygon, rings)),
+
         _ => {
-            println!("Non Polygon GeoJSON not supported");
+            println!("Non-polygon GeoJSON geometry is not supported");
             false
         }
     }
