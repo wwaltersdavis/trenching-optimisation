@@ -1,12 +1,12 @@
 use anyhow::Result;
 use fs_err::File;
-use geo::{coord, Coord, Intersects, LineString, Polygon};
-use geojson::{Feature, FeatureCollection, GeoJson, Geometry, Value};
+use geo::{Intersects, Polygon};
+use geojson::{Feature, FeatureCollection, GeoJson, Geometry};
 use std::io::{BufReader, BufWriter};
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let loe_gj = read_raw_geojson(format!("LOE_{}", &args[1]))?;
+    let loe_gj = read_raw_geojson(format!("LOE_{}", args[1]))?;
 
     let mut loes: Vec<Feature> = Vec::new();
     let mut loes_polygon: Vec<Polygon> = Vec::new();
@@ -16,25 +16,26 @@ fn main() -> Result<()> {
             for feature in &collection.features {
                 loes.push(feature.clone());
                 if let Some(ref geom) = feature.geometry {
-                    match geom.value {
-                        Value::Polygon(ref polygon) => {
-                            let poly_exterior = polygon[0]
-                                .iter()
-                                .map(|c| {
-                                    coord! { x: c[0], y: c[1] }
-                                })
-                                .collect::<Vec<Coord>>();
-                            loes_polygon.push(Polygon::new(LineString(poly_exterior), vec![]));
+                    let geo_geometry: geo::Geometry = geo::Geometry::try_from(geom.clone())
+                        .unwrap_or_else(|_| {
+                            panic!(
+                                "Failed to convert GeoJSON geometry to geo::Geometry: {}",
+                                feature
+                            )
+                        });
+                    match geo_geometry {
+                        geo::Geometry::Polygon(polygon) => {
+                            loes_polygon.push(polygon);
                         }
-                        _ => println!("Non Polygon GeoJSON not supported"),
+                        _ => panic!("Non Polygon GeoJSON not supported: {}", feature),
                     }
                 }
             }
         }
-        _ => println!("Non FeatureCollection GeoJSON not supported"),
+        _ => panic!("Non FeatureCollection GeoJSON not supported"),
     }
 
-    let features_gj = read_raw_geojson(format!("features_{}", &args[1]))?;
+    let features_gj = read_raw_geojson(format!("features_{}", args[1]))?;
     let mut loe_feature_collections: Vec<Vec<Feature>> = vec![Vec::new(); loes.len()];
 
     let mut number_of_features = 0;
@@ -42,15 +43,19 @@ fn main() -> Result<()> {
         for feature in collection.features.iter() {
             if let Some(ref geom) = feature.geometry {
                 for (i, loe_polygon) in loes_polygon.iter().enumerate() {
-                    if compare_loe_to_feature(loe_polygon.clone(), geom) {
+                    if feature_intersects_loe(loe_polygon.clone(), geom) {
                         let mut feature = feature.clone();
                         // standardise the Layer names
                         if feature.contains_property("LANDSCAPE") {
-                            feature.set_property("Layer", feature.property("LANDSCAPE").unwrap().clone());
+                            feature.set_property(
+                                "Layer",
+                                feature.property("LANDSCAPE").unwrap().clone(),
+                            );
                             feature.remove_property("LANDSCAPE");
                         }
                         if feature.contains_property("Phase") {
-                            feature.set_property("Layer", feature.property("Phase").unwrap().clone());
+                            feature
+                                .set_property("Layer", feature.property("Phase").unwrap().clone());
                             feature.remove_property("Phase");
                         }
                         loe_feature_collections[i].push(feature);
@@ -60,7 +65,7 @@ fn main() -> Result<()> {
             }
         }
     } else {
-        println!("Non FeatureCollection GeoJSON not supported");
+        panic!("Non FeatureCollection GeoJSON not supported");
     }
 
     let number_of_features_not_in_loe = number_of_features
@@ -70,7 +75,7 @@ fn main() -> Result<()> {
             .sum::<usize>();
     println!(
         "Number of features not in LOE: {} for {}",
-        number_of_features_not_in_loe, &args[1]
+        number_of_features_not_in_loe, args[1]
     );
 
     for (i, loe_feature_collection) in loe_feature_collections.iter().enumerate() {
@@ -128,20 +133,18 @@ fn read_raw_geojson(file_name: String) -> Result<GeoJson> {
     Ok(gj)
 }
 
-fn compare_loe_to_feature(loe_polygon: Polygon, geom: &Geometry) -> bool {
-    match geom.value {
-        Value::Polygon(ref polygon) => {
-            let poly_exterior = polygon[0]
-                .iter()
-                .map(|c| {
-                    coord! { x: c[0], y: c[1] }
-                })
-                .collect::<Vec<Coord>>();
-            let poly = Polygon::new(LineString(poly_exterior), vec![]);
-            poly.intersects(&loe_polygon)
-        }
+fn feature_intersects_loe(loe_polygon: Polygon, geom: &Geometry) -> bool {
+    let geo_geometry = geo::Geometry::try_from(geom.clone()).unwrap_or_else(|_| {
+        panic!(
+            "Failed to convert GeoJSON geometry to geo::Geometry: {}",
+            geom
+        )
+    });
+    match geo_geometry {
+        geo::Geometry::Polygon(polygon) => polygon.intersects(&loe_polygon),
         _ => {
-            println!("Non Polygon GeoJSON not supported");
+            // TODO: Should we panic here?
+            println!("Non Polygon GeoJSON not supported - skipping feature");
             false
         }
     }
