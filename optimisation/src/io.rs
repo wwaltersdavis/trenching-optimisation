@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use fs_err::File;
-use geo::{coord, LineString, Polygon};
-use geojson::{Feature, GeoJson, Geometry, Value};
+use geo::{Geometry, Polygon};
+use geojson::{Feature, GeoJson};
 use std::io::BufReader;
 use std::time::Instant;
 
@@ -17,19 +17,6 @@ fn read_single_features_geojson(site_name: String, loe_i: String) -> Result<GeoJ
     Ok(gj)
 }
 
-fn get_site_outline_of_loe(polygon: Vec<Vec<Vec<f64>>>) -> Polygon {
-    if polygon.len() > 1 {
-        println!("Warning: more than one polygon found for LOE");
-    }
-    let poly_exterior = polygon[0]
-        .iter()
-        .map(|c| {
-            coord! { x: c[0], y: c[1] }
-        })
-        .collect();
-    Polygon::new(LineString(poly_exterior), vec![])
-}
-
 fn read_single_loe_feature(site_name: String, loe_i: String) -> Result<Polygon> {
     let file = File::open(format!(
         "../data/grouped_by_loe/{}/{}/loe.geojson",
@@ -37,12 +24,19 @@ fn read_single_loe_feature(site_name: String, loe_i: String) -> Result<Polygon> 
     ))?;
     let reader = BufReader::new(file);
     let feature: Feature = serde_json::from_reader(reader)?;
-    match feature.geometry {
-        Some(geometry) => match geometry.value {
-            Value::Polygon(polygon) => Ok(get_site_outline_of_loe(polygon)),
-            _ => Err(anyhow!("Geometry is not a polygon")),
-        },
-        // Ok(geometry),
+    match feature.clone().geometry {
+        Some(geometry) => {
+            let geo_geometry = Geometry::try_from(geometry).unwrap_or_else(|_| {
+                panic!(
+                    "Failed to convert GeoJSON geometry to Geometry: {}",
+                    feature
+                )
+            });
+            match geo_geometry {
+                Geometry::Polygon(polygon) => Ok(polygon),
+                _ => Err(anyhow!("Geometry {} is not a polygon", feature)),
+            }
+        }
         None => Err(anyhow!("No geometry found in LOE file")),
     }
 }
@@ -93,41 +87,52 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Arc
                 }
 
                 if let Some(ref geom) = feature.geometry {
-                    if let Some(poly) = geometry_to_polygon(geom) {
-                        let period = feature
-                            .property("Period")
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "Unknown".to_string());
+                    let geo_geometry = Geometry::try_from(geom.clone()).unwrap_or_else(|_| {
+                        panic!(
+                            "Failed to convert GeoJSON geometry to Geometry: {}",
+                            feature
+                        )
+                    });
+                    match geo_geometry {
+                        Geometry::Polygon(polygon) => {
+                            let period = feature
+                                .property("Period")
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "Unknown".to_string());
 
-                        let feature_type = feature
-                            .property("Type")
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "Unknown".to_string());
+                            let feature_type = feature
+                                .property("Type")
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "Unknown".to_string());
 
-                        let monument = feature
-                            .property("MONUMENT")
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "Unknown".to_string());
+                            let monument = feature
+                                .property("MONUMENT")
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "Unknown".to_string());
 
-                        let area_text = feature
-                            .property("POLY_AREA")
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(|| "0".to_string());
+                            let area_text = feature
+                                .property("POLY_AREA")
+                                .map(|v| v.to_string())
+                                .unwrap_or_else(|| "0".to_string());
 
-                        let area = area_text
-                            .replace("\"Float(Some(", "")
-                            .replace("))\"", "")
-                            .replace("\"", "")
-                            .parse::<f64>()
-                            .unwrap_or(0.0);
+                            let area = area_text
+                                .replace("\"Float(Some(", "")
+                                .replace("))\"", "")
+                                .replace("\"", "")
+                                .parse::<f64>()
+                                .unwrap_or(0.0);
 
-                        features.push(ArchFeature {
-                            polygon: poly,
-                            period,
-                            feature_type,
-                            monument,
-                            area,
-                        });
+                            features.push(ArchFeature {
+                                polygon,
+                                period,
+                                feature_type,
+                                monument,
+                                area,
+                            });
+                        }
+                        _ => {
+                            panic!("Non Polygon GeoJSON not supported: {}", feature);
+                        }
                     }
                 }
             }
@@ -138,28 +143,6 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Arc
                 Some(features)
             }
         }
-        _ => {
-            println!("Non FeatureCollection GeoJSON not supported");
-            None
-        }
-    }
-}
-// Process GeoJSON geometries
-fn geometry_to_polygon(geom: &Geometry) -> Option<Polygon<f64>> {
-    match geom.value {
-        Value::Polygon(ref polygon) => {
-            let poly_exterior = polygon[0]
-                .iter()
-                .map(|c| {
-                    coord! { x: c[0], y: c[1] }
-                })
-                .collect();
-            Some(Polygon::new(LineString(poly_exterior), vec![]))
-        }
-        _ => {
-            // TODO: update this placeholder for other geometry types
-            println!("Matched some other geometry");
-            None
-        }
+        _ => panic!("Non FeatureCollection GeoJSON not supported: {}", gj),
     }
 }

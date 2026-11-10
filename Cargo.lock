@@ -396,13 +396,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "geojson"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "510c094bfc76ea34d02eee00833254945b70491d79a9c0b050abed6eaa799ffb"
+dependencies = [
+ "geo-types",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tinyvec",
+]
+
+[[package]]
 name = "group_to_loe"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "fs-err",
  "geo",
- "geojson",
+ "geojson 1.0.0",
  "serde",
  "serde_json",
 ]
@@ -949,7 +963,7 @@ checksum = "1c255c8dad985e26882dba6ba7b631abdbf43f1930640d0adb2b25f7d89158df"
 dependencies = [
  "dbase 0.3.0",
  "futures",
- "geojson",
+ "geojson 0.24.2",
  "indicatif",
  "num_cpus",
  "regex",
@@ -1062,6 +1076,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
 
 [[package]]
+name = "tinyvec"
+version = "1.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "tokio"
 version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1097,7 +1120,7 @@ dependencies = [
  "csv",
  "fs-err",
  "geo",
- "geojson",
+ "geojson 1.0.0",
  "rayon",
  "serde",
  "serde_json",
