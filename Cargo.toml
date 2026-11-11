@@ -3,7 +3,6 @@ resolver = "2"
 
 members = [
     "optimisation",
-    "preprocessing/convert_shapefiles_to_geojson",
     "preprocessing/group_to_loe",
 ]
 
