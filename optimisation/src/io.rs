@@ -95,11 +95,8 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Arc
                     });
                     match geo_geometry {
                         Geometry::Polygon(polygon) => {
-                            push_to_features(
-                                &mut features,
-                                MultiPolygon(vec![polygon.clone()]),
-                                feature,
-                            );
+                            let multipolygon = MultiPolygon(vec![polygon.clone()]);
+                            push_to_features(&mut features, multipolygon, feature);
                         }
                         Geometry::MultiPolygon(multipolygon) => {
                             push_to_features(&mut features, multipolygon.clone(), feature);
