@@ -1,9 +1,0 @@
-[package]
-name = "convert_shapefiles_to_geojson"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-anyhow.workspace = true
-shapefile-to-geojson = "0.1.4"
-tokio = { version = "1.0", features = ["full"] }
