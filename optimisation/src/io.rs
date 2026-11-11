@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use fs_err::File;
-use geo::{Geometry, Polygon};
+use geo::{Geometry, MultiPolygon, Polygon};
 use geojson::{Feature, GeoJson};
 use std::io::BufReader;
 use std::time::Instant;
@@ -95,40 +95,14 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Arc
                     });
                     match geo_geometry {
                         Geometry::Polygon(polygon) => {
-                            let period = feature
-                                .property("Period")
-                                .map(|v| v.to_string())
-                                .unwrap_or_else(|| "Unknown".to_string());
-
-                            let feature_type = feature
-                                .property("Type")
-                                .map(|v| v.to_string())
-                                .unwrap_or_else(|| "Unknown".to_string());
-
-                            let monument = feature
-                                .property("MONUMENT")
-                                .map(|v| v.to_string())
-                                .unwrap_or_else(|| "Unknown".to_string());
-
-                            let area_text = feature
-                                .property("POLY_AREA")
-                                .map(|v| v.to_string())
-                                .unwrap_or_else(|| "0".to_string());
-
-                            let area = area_text
-                                .replace("\"Float(Some(", "")
-                                .replace("))\"", "")
-                                .replace("\"", "")
-                                .parse::<f64>()
-                                .unwrap_or(0.0);
-
-                            features.push(ArchFeature {
-                                polygon,
-                                period,
-                                feature_type,
-                                monument,
-                                area,
-                            });
+                            push_to_features(
+                                &mut features,
+                                MultiPolygon(vec![polygon.clone()]),
+                                feature,
+                            );
+                        }
+                        Geometry::MultiPolygon(multipolygon) => {
+                            push_to_features(&mut features, multipolygon.clone(), feature);
                         }
                         _ => {
                             panic!("Non Polygon GeoJSON not supported: {}", feature);
@@ -145,4 +119,45 @@ fn process_geojson(gj: &GeoJson, selected_layer: Option<&str>) -> Option<Vec<Arc
         }
         _ => panic!("Non FeatureCollection GeoJSON not supported: {}", gj),
     }
+}
+
+fn push_to_features(
+    features: &mut Vec<ArchFeature>,
+    multipolygon: MultiPolygon<f64>,
+    feature: &Feature,
+) {
+    let period = feature
+        .property("Period")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    let feature_type = feature
+        .property("Type")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    let monument = feature
+        .property("MONUMENT")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    let area_text = feature
+        .property("POLY_AREA")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "0".to_string());
+
+    let area = area_text
+        .replace("\"Float(Some(", "")
+        .replace("))\"", "")
+        .replace("\"", "")
+        .parse::<f64>()
+        .unwrap_or(0.0);
+
+    features.push(ArchFeature {
+        multipolygon,
+        period,
+        feature_type,
+        monument,
+        area,
+    });
 }

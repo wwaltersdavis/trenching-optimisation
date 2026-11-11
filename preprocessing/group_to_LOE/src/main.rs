@@ -27,7 +27,7 @@ fn main() -> Result<()> {
                         geo::Geometry::Polygon(polygon) => {
                             loes_polygon.push(polygon);
                         }
-                        _ => panic!("Non Polygon GeoJSON not supported: {}", feature),
+                        _ => panic!("Non Polygon LOE not supported: {}", feature),
                     }
                 }
             }
@@ -142,9 +142,10 @@ fn feature_intersects_loe(loe_polygon: Polygon, geom: &Geometry) -> bool {
     });
     match geo_geometry {
         geo::Geometry::Polygon(polygon) => polygon.intersects(&loe_polygon),
+        geo::Geometry::MultiPolygon(multi_polygon) => multi_polygon.intersects(&loe_polygon),
         _ => {
             // TODO: Should we panic here?
-            println!("Non Polygon GeoJSON not supported - skipping feature");
+            println!("Non Polygon/MultiPolygon GeoJSON not supported - skipping feature");
             false
         }
     }
