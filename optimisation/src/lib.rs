@@ -1,5 +1,5 @@
 use geo::{coord, Coord, MultiPolygon, Polygon};
-use std::time::Instant;
+use std::{collections::HashSet, time::Instant};
 
 #[derive(Debug)]
 pub struct TrenchLayout {
@@ -16,11 +16,35 @@ pub struct ArchFeature {
     pub area: f64,
 }
 
+impl ArchFeature {
+    pub fn iter_categories(&self) -> impl Iterator<Item = (&str, &str)> {
+        vec![
+            ("All", "All"), // Every feature belongs to the "All" category
+            ("Period", self.period.as_str()),
+            ("Type", self.feature_type.as_str()),
+            ("Monument", self.monument.as_str()),
+        ]
+        .into_iter()
+    }
+}
+
 #[derive(Debug)]
 pub struct TestLocation {
     pub site_name: String,
     pub limit_of_excavation: Polygon,
     pub features: Vec<ArchFeature>,
+}
+
+impl TestLocation {
+    pub fn unique_categories(&self) -> HashSet<(&str, &str)> {
+        let mut unique_categories = HashSet::new();
+        for feature in &self.features {
+            for category in feature.iter_categories() {
+                unique_categories.insert(category);
+            }
+        }
+        unique_categories
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -111,6 +135,22 @@ impl Structure {
 pub enum Distribution {
     Spacing(f64),         // meters
     Coverage(Percentage), // percentage coverage
+}
+
+impl Distribution {
+    pub fn to_file_string(&self) -> String {
+        match self {
+            Distribution::Spacing(value) => format!("spacing_{}m", value).to_string(),
+            Distribution::Coverage(value) => format!("coverage_{}pct", value.0).to_string(),
+        }
+    }
+
+    pub fn nominal_coverage_percent(&self) -> f64 {
+        match self {
+            Distribution::Coverage(value) => value.0,
+            Distribution::Spacing(_) => f64::NAN,
+        }
+    }
 }
 
 fn get_coords(rectangle: Rectangle, angle_from_verticle: Degree) -> [Coord; 4] {
