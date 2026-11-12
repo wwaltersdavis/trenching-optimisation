@@ -1,3 +1,4 @@
+use crate::statistics::StatsMap;
 use geo::{Area, BooleanOps, BoundingRect, Intersects, MultiPolygon};
 use std::collections::HashMap;
 use trenching_optimisation::{ArchFeature, TrenchLayout};
@@ -70,56 +71,46 @@ impl FeaturesStats {
     }
 }
 
-pub fn count_features_hit_or_missed_by_category(
-    features: &Vec<ArchFeature>,
+pub fn test_features_for_layout<'a>(
+    features: &'a Vec<ArchFeature>,
     trenches: &TrenchLayout,
-) -> FeaturesStats {
-    let mut features_found = 0;
-    let mut features_missed = 0;
-    let mut area_found = 0.0;
-    let mut area_missed = 0.0;
-    let mut category_stats: HashMap<String, (i32, i32, f64, f64)> = HashMap::new();
+    site: &'a str,
+) -> StatsMap<'a> {
+    let mut stats_map = StatsMap::new();
 
     for feature in features {
         let excavated_area = excavated_overlap_area(&feature.multipolygon, trenches);
-
-        let unexcavated_area = (feature.area - excavated_area).max(0.0);
-
-        let found = excavated_area > 0.0;
-
-        if found {
-            features_found += 1;
-        } else {
-            features_missed += 1;
-        }
-
-        area_found += excavated_area;
-        area_missed += unexcavated_area;
-
-        for category in [
-            format!("Period::{}", feature.period),
-            format!("Type::{}", feature.feature_type),
-            format!("MONUMENT::{}", feature.monument),
-        ] {
-            let entry = category_stats.entry(category).or_insert((0, 0, 0.0, 0.0));
-
-            if found {
-                entry.0 += 1;
-            } else {
-                entry.1 += 1;
-            }
-
-            entry.2 += excavated_area;
-            entry.3 += unexcavated_area;
-        }
+        stats_map.add_from_feature(
+            site,
+            &feature.feature_type,
+            &feature.monument,
+            excavated_area > 0.0,
+            excavated_area,
+            feature.area - excavated_area,
+            trenches.trenches_deployed as u32,
+        );
     }
-
-    FeaturesStats {
-        features_found,
-        features_missed,
-        area_found,
-        area_missed,
-        trenches_deployed: trenches.trenches_deployed,
-        category_stats,
+    for stats in stats_map.0.values_mut() {
+        stats.update_percentages();
     }
+    stats_map
 }
+
+// pub fn test_features_for_layout<'a>(
+//     features: &'a Vec<ArchFeature>,
+//     trenches: &TrenchLayout,
+// ) -> TestedLayout<'a> {
+//     let mut tested_layout = TestedLayout::new_from_layout(trenches);
+
+//     for feature in features {
+//         let excavated_area = excavated_overlap_area(&feature.multipolygon, trenches);
+//         tested_layout.tested_features.push(TestedFeature {
+//             period: &feature.period,
+//             feature_type: &feature.feature_type,
+//             monument: &feature.monument,
+//             area: feature.area,
+//             excavated_area,
+//         });
+//     }
+//     tested_layout
+// }
