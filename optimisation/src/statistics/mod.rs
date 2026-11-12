@@ -1,5 +1,6 @@
 pub mod csv_output;
 pub mod detection_stats;
+pub mod tested_feature;
 
 pub use csv_output::write_to_csv;
 pub use detection_stats::DetectionStats;
