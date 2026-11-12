@@ -26,11 +26,9 @@ fn excavated_overlap_area(feature: &MultiPolygon<f64>, trenches: &TrenchLayout) 
             continue;
         }
 
-        let trench_as_multi = MultiPolygon(vec![trench_polygon.clone()]);
-
         // TODO: use fn `safe_intersection` function from trench.rs.
         let intersection_result = std::panic::catch_unwind(|| {
-            feature.boolean_op(&trench_as_multi, geo::OpType::Intersection)
+            trench_polygon.boolean_op(feature, geo::OpType::Intersection)
         });
 
         if let Ok(intersection) = intersection_result {
