@@ -154,7 +154,7 @@ fn push_to_features(
     }
 
     features.push(ArchFeature {
-        multipolygon,
+        multipolygon: clipped_multipolygon,
         period,
         feature_type,
         monument,
