@@ -1,5 +1,5 @@
 use crate::{
-    statistics::{four_dp, two_dp, Stats, StatsMap},
+    statistics::{four_dp, two_dp, DetectionStats, StatsMap},
     TrenchConfig,
 };
 use anyhow::Result;
@@ -54,7 +54,7 @@ impl<'a> Row<'a> {
         site: &'a str,
         category: &'a str,
         category_value: &'a str,
-        stats: &Stats,
+        stats: &DetectionStats,
         distribution: &Distribution,
         pattern_name: &'a str,
     ) -> Self {
