@@ -58,6 +58,13 @@ pub fn read_all_test_location_data(selected_layer: Option<&str>) -> Result<Vec<T
             let features = read_single_features_geojson(site.to_string(), i.to_string())?;
             match process_geojson(&features, selected_layer, &limit_of_excavation) {
                 Some(arch_features) => {
+                    if no_arch_features_found(&arch_features) {
+                        println!(
+                            "WARNING: No features found for site: {} location: {} - skipping",
+                            site, i
+                        );
+                        continue;
+                    }
                     test_locations.push(TestLocation {
                         site_name: site.to_string(),
                         limit_of_excavation,
@@ -179,6 +186,18 @@ fn clip_to_loe(
     multipolygon.boolean_op(limit_of_excavation, OpType::Intersection)
 }
 
+fn no_arch_features_found(features: &Vec<ArchFeature>) -> bool {
+    if features.is_empty() {
+        return true;
+    }
+    for feature in features {
+        if feature.area > 0.0 {
+            return false;
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +242,25 @@ mod tests {
         ]]);
         let clipped = clip_to_loe(&feature, &loe);
         assert_eq!(clipped.unsigned_area(), 25.0);
+    }
+
+    #[test]
+    fn test_no_arch_features_found() {
+        let features_with_area = vec![ArchFeature {
+            multipolygon: MultiPolygon(vec![]),
+            period: "Iron Age".to_string(),
+            feature_type: "Pit".to_string(),
+            monument: "Monument1".to_string(),
+            area: 10.0,
+        }];
+        let features_without_area = vec![ArchFeature {
+            multipolygon: MultiPolygon(vec![]),
+            period: "Iron Age".to_string(),
+            feature_type: "Pit".to_string(),
+            monument: "Monument1".to_string(),
+            area: 0.0,
+        }];
+        assert!(no_arch_features_found(&features_without_area));
+        assert!(!no_arch_features_found(&features_with_area));
     }
 }
