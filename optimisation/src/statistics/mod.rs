@@ -4,27 +4,29 @@ pub mod detection_stats;
 pub use csv_output::write_to_csv;
 pub use detection_stats::*;
 
-pub fn percentage(numerator: f64, denominator: f64) -> f64 {
-    if denominator == 0.0 {
-        return f64::NAN;
-    }
-    numerator / denominator * 100.0
+use crate::Percentage;
+
+pub fn mean<T>(values: &[T]) -> T
+where
+    T: Copy + std::iter::Sum<T> + std::ops::Div<Output = T> + From<u32>,
+{
+    let sum: T = values.iter().copied().sum();
+    let count = T::from(values.len() as u32);
+    sum / count
 }
 
-pub fn mean(values: &[f64]) -> f64 {
-    let sum: f64 = values.iter().sum();
-    let count = values.len();
-    sum / count as f64
-}
-
-pub fn standard_deviation(values: &[f64]) -> f64 {
+pub fn standard_deviation<T>(values: &[T]) -> f64
+where
+    T: Copy + Into<f64>,
+{
     let count = values.len();
     if count < 2 {
         return f64::NAN;
     }
 
-    let mean_value = mean(values);
-    let variance = values
+    let floats: Vec<f64> = values.iter().map(|&v| v.into()).collect();
+    let mean_value = mean(&floats);
+    let variance = floats
         .iter()
         .map(|&value| (value - mean_value).powi(2))
         .sum::<f64>()
@@ -33,32 +35,27 @@ pub fn standard_deviation(values: &[f64]) -> f64 {
     variance.sqrt()
 }
 
-pub fn percentile(values: &[f64], percentile: f64) -> f64 {
-    let mut clean_values: Vec<f64> = values
-        .iter()
-        .copied()
-        .filter(|value| value.is_finite())
-        .collect();
-
-    if clean_values.is_empty() {
-        return f64::NAN;
+pub fn percentile(percentages: &[Percentage], percentile: f64) -> Percentage {
+    if percentages.is_empty() {
+        panic!("No percentages found for percentile calculation");
     }
 
-    clean_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut percentages = percentages.to_vec();
+    percentages.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-    if clean_values.len() == 1 {
-        return clean_values[0];
+    if percentages.len() == 1 {
+        return percentages[0];
     }
 
-    let rank = percentile.clamp(0.0, 1.0) * (clean_values.len() - 1) as f64;
+    let rank = percentile.clamp(0.0, 1.0) * (percentages.len() - 1) as f64;
     let lower_index = rank.floor() as usize;
     let upper_index = rank.ceil() as usize;
 
     if lower_index == upper_index {
-        clean_values[lower_index]
+        percentages[lower_index]
     } else {
         let weight = rank - lower_index as f64;
-        clean_values[lower_index] * (1.0 - weight) + clean_values[upper_index] * weight
+        percentages[lower_index] * (1.0 - weight) + percentages[upper_index] * weight
     }
 }
 
@@ -72,20 +69,15 @@ pub fn four_dp(value: f64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_eq;
-
     use super::*;
-
-    #[test]
-    fn test_percentage() {
-        assert_eq!(percentage(50.0, 200.0), 25.0);
-        assert!(percentage(50.0, 0.0).is_nan());
-    }
 
     #[test]
     fn test_mean() {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         assert_eq!(mean(&values), 3.0);
+
+        let percentages: Vec<Percentage> = values.iter().map(|&v| Percentage(v)).collect();
+        assert_eq!(mean(&percentages).0, 3.0);
     }
 
     #[test]
@@ -93,6 +85,9 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         assert!((standard_deviation(&values) - 1.5811388300841898).abs() < 1e-10);
         assert!(standard_deviation(&[1.0]).is_nan());
+
+        let percentages: Vec<Percentage> = values.iter().map(|&v| Percentage(v)).collect();
+        assert!((standard_deviation(&percentages) - 1.5811388300841898).abs() < 1e-10);
     }
 
     #[test]
@@ -109,16 +104,18 @@ mod tests {
 
     #[test]
     fn test_percentile() {
-        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        assert_eq!(percentile(&values, 0.0), 1.0);
-        assert_eq!(percentile(&values, 0.25), 2.0);
-        assert_eq!(percentile(&values, 0.5), 3.0);
-        assert_eq!(percentile(&values, 0.75), 4.0);
-        assert_eq!(percentile(&values, 1.0), 5.0);
-        assert_eq!(percentile(&values, 0.6), 3.4);
-        assert_eq!(percentile(&values, -0.1), 1.0); // Clamped to 0.0
-        assert_eq!(percentile(&values, 1.1), 5.0); // Clamped to 1.0
-        assert!(percentile(&[], 0.5).is_nan());
-        assert!(percentile(&[f64::NAN, f64::INFINITY], 0.5).is_nan());
+        let values: Vec<Percentage> = vec![1.0, 2.0, 3.0, 4.0, 5.0]
+            .into_iter()
+            .map(Percentage)
+            .collect();
+
+        assert_eq!(percentile(&values, 0.0), Percentage(1.0));
+        assert_eq!(percentile(&values, 0.25), Percentage(2.0));
+        assert_eq!(percentile(&values, 0.5), Percentage(3.0));
+        assert_eq!(percentile(&values, 0.75), Percentage(4.0));
+        assert_eq!(percentile(&values, 1.0), Percentage(5.0));
+        assert_eq!(percentile(&values, 0.6), Percentage(3.4));
+        assert_eq!(percentile(&values, -0.1), Percentage(1.0)); // Clamped to 0.0
+        assert_eq!(percentile(&values, 1.1), Percentage(5.0)); // Clamped to 1.0
     }
 }

@@ -1,6 +1,10 @@
-use crate::statistics::{mean, percentage, percentile, standard_deviation};
+use crate::statistics::{mean, percentile, standard_deviation};
 use std::collections::HashMap;
+use trenching_optimisation::Percentage;
 
+/// Represents the detection statistics for a given group of features.
+/// The features are grouped by site, category, and category value e.g.
+/// ("Site A", "Period", "Bronze Age").
 pub struct DetectionStats {
     pub total_features_found: u32,
     pub total_features_missed: u32,
@@ -8,8 +12,8 @@ pub struct DetectionStats {
     pub total_area_missed: f64,
     pub total_layouts_tested: u32,
     pub total_trenches_deployed: u32,
-    pub features_found_percentages: Vec<f64>,
-    pub area_found_percentages: Vec<f64>,
+    pub features_found_percentages: Vec<Percentage>,
+    pub area_found_percentages: Vec<Percentage>,
     pub layouts_tested_where_a_feature_found: u32,
 }
 
@@ -28,26 +32,28 @@ impl DetectionStats {
         }
     }
 
-    pub fn update_percentages(&mut self) {
+    /// Set the percentages for features found and area found based on the current
+    /// totals for a given layout.
+    pub fn set_percentages(&mut self) {
         self.features_found_percentages = vec![self.feature_found_percentage()];
         self.area_found_percentages = vec![self.area_found_percentage()];
     }
 
-    pub fn feature_found_percentage(&self) -> f64 {
-        percentage(
+    pub fn feature_found_percentage(&self) -> Percentage {
+        Percentage::from_fraction(
             self.total_features_found as f64,
             (self.total_features_found + self.total_features_missed) as f64,
         )
     }
 
-    pub fn area_found_percentage(&self) -> f64 {
-        percentage(
+    pub fn area_found_percentage(&self) -> Percentage {
+        Percentage::from_fraction(
             self.total_area_found,
             self.total_area_found + self.total_area_missed,
         )
     }
 
-    pub fn mean_trenches_per_pattern(&self) -> f64 {
+    pub fn mean_trenches_per_layout(&self) -> f64 {
         self.total_trenches_deployed as f64 / self.total_layouts_tested as f64
     }
 
@@ -59,48 +65,44 @@ impl DetectionStats {
         self.total_area_found / self.total_trenches_deployed as f64
     }
 
-    pub fn probability_detection(&self) -> f64 {
-        percentage(
+    pub fn probability_of_a_single_feature_detection(&self) -> Percentage {
+        Percentage::from_fraction(
             self.layouts_tested_where_a_feature_found as f64,
             self.total_layouts_tested as f64,
         )
     }
 
+    /// Returns the probability of recovering a feature at or above a given
+    /// nominal coverage percentage.
     pub fn probability_feature_recovery_ge_nominal(
         &self,
-        nominal_coverage_percent: Option<f64>,
-    ) -> f64 {
-        if let Some(nominal_coverage_percent) = nominal_coverage_percent {
-            let n_ge_nominal = self
-                .features_found_percentages
-                .iter()
-                .filter(|&&p| p >= nominal_coverage_percent)
-                .count();
+        nominal_coverage_percent: Percentage,
+    ) -> Percentage {
+        let n_ge_nominal = self
+            .features_found_percentages
+            .iter()
+            .filter(|&&p| p >= nominal_coverage_percent)
+            .count();
 
-            percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
-        } else {
-            f64::NAN
-        }
+        Percentage::from_fraction(n_ge_nominal as f64, self.total_layouts_tested as f64)
     }
 
+    /// Returns the probability of recovering an area at or above a given
+    /// nominal coverage percentage.
     pub fn probability_area_recovery_ge_nominal(
         &self,
-        nominal_coverage_percent: Option<f64>,
-    ) -> f64 {
-        if let Some(nominal_coverage_percent) = nominal_coverage_percent {
-            let n_ge_nominal = self
-                .area_found_percentages
-                .iter()
-                .filter(|&&p| p >= nominal_coverage_percent)
-                .count();
+        nominal_coverage_percent: Percentage,
+    ) -> Percentage {
+        let n_ge_nominal = self
+            .area_found_percentages
+            .iter()
+            .filter(|&&p| p >= nominal_coverage_percent)
+            .count();
 
-            percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
-        } else {
-            f64::NAN
-        }
+        Percentage::from_fraction(n_ge_nominal as f64, self.total_layouts_tested as f64)
     }
 
-    pub fn mean_run_feature_percentage(&self) -> f64 {
+    pub fn mean_run_feature_percentage(&self) -> Percentage {
         mean(&self.features_found_percentages)
     }
 
@@ -108,7 +110,7 @@ impl DetectionStats {
         standard_deviation(&self.features_found_percentages)
     }
 
-    pub fn mean_run_area_percentage(&self) -> f64 {
+    pub fn mean_run_area_percentage(&self) -> Percentage {
         mean(&self.area_found_percentages)
     }
 
@@ -117,18 +119,18 @@ impl DetectionStats {
     }
 
     pub fn coefficient_of_variation_feature_recovery(&self) -> f64 {
-        self.sd_run_feature_percentage() / self.mean_run_feature_percentage()
+        self.sd_run_feature_percentage() / f64::from(self.mean_run_feature_percentage())
     }
 
     pub fn coefficient_of_variation_area_recovery(&self) -> f64 {
-        self.sd_run_area_percentage() / self.mean_run_area_percentage()
+        self.sd_run_area_percentage() / f64::from(self.mean_run_area_percentage())
     }
 
-    pub fn run_feature_percentage(&self, p: f64) -> f64 {
+    pub fn run_feature_percentage(&self, p: f64) -> Percentage {
         percentile(&self.features_found_percentages, p)
     }
 
-    pub fn run_area_percentage(&self, p: f64) -> f64 {
+    pub fn run_area_percentage(&self, p: f64) -> Percentage {
         percentile(&self.area_found_percentages, p)
     }
 }
@@ -211,7 +213,7 @@ impl<'a> StatsMap<'a> {
                 "Total features found: {} \nTotal features missed: {} \nPercentage found: {:.2}% \nTotal trenches deployed: {}",
                 stats.total_features_found,
                 stats.total_features_missed,
-                stats.feature_found_percentage(),
+                stats.feature_found_percentage().to_2dp(),
                 stats.total_trenches_deployed,
             )
         } else {
@@ -221,3 +223,45 @@ impl<'a> StatsMap<'a> {
 }
 
 // TODO: Add tests for StatsMap and DetectionStats methods.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detection_stats_percentages() {
+        let mut stats = DetectionStats::new();
+        stats.total_features_found = 80;
+        stats.total_features_missed = 20;
+        stats.total_area_found = 800.0;
+        stats.total_area_missed = 200.0;
+        stats.set_percentages();
+        assert_eq!(stats.feature_found_percentage(), Percentage(80.0));
+        assert_eq!(stats.area_found_percentage(), Percentage(80.0));
+    }
+
+    #[test]
+    fn test_mean_trenches_per_layout() {
+        let mut stats = DetectionStats::new();
+        stats.total_trenches_deployed = 100;
+        stats.total_layouts_tested = 10;
+        assert_eq!(stats.mean_trenches_per_layout(), 10.0);
+    }
+
+    #[test]
+    fn test_features_detected_per_trench() {
+        let mut stats = DetectionStats::new();
+        stats.total_features_found = 50;
+        stats.total_trenches_deployed = 10;
+        assert_eq!(stats.features_detected_per_trench(), 5.0);
+    }
+
+    #[test]
+    fn test_excavated_feature_area_per_trench() {
+        let mut stats = DetectionStats::new();
+        stats.total_area_found = 500.0;
+        stats.total_trenches_deployed = 100;
+        assert_eq!(stats.excavated_feature_area_per_trench(), 5.0);
+    }
+
+    // #[test]
+}
