@@ -13,7 +13,6 @@ pub fn create_layouts(
     config: &TrenchConfig,
     limit_of_excavation: Polygon,
 ) -> Option<Vec<TrenchLayout>> {
-    // exclude holes as removed in preprocessing
     let centroid = limit_of_excavation.centroid().unwrap();
     let max_distance_from_centroid = get_max_distance_from_centroid(centroid, &limit_of_excavation);
 
