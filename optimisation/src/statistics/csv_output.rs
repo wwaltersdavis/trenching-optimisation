@@ -1,11 +1,19 @@
 use crate::{
-    statistics::{four_dp, two_dp, DetectionStats, StatsMap},
+    statistics::{DetectionStats, StatsMap},
     TrenchConfig,
 };
 use anyhow::Result;
 use csv::Writer;
 use serde::Serialize;
 use trenching_optimisation::Distribution;
+
+fn two_dp(value: f64) -> String {
+    format!("{:.2}", value)
+}
+
+fn four_dp(value: f64) -> String {
+    format!("{:.4}", value)
+}
 
 #[derive(Debug, Serialize)]
 struct Row<'a> {
@@ -125,4 +133,21 @@ pub fn write_to_csv(
         ))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_two_dp() {
+        assert_eq!(two_dp(3.589), "3.59");
+        assert_eq!(two_dp(f64::NAN), "NaN");
+    }
+
+    #[test]
+    fn test_four_dp() {
+        assert_eq!(four_dp(3.589123), "3.5891");
+        assert_eq!(four_dp(f64::NAN), "NaN");
+    }
 }
