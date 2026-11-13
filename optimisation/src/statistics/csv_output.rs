@@ -38,7 +38,6 @@ struct Row<'a> {
     p50_run_percentage_found: String,
     p75_run_percentage_found: String,
     p95_run_percentage_found: String,
-    // area_eligible_runs: u64,
     mean_run_percentage_area_found: String,
     sd_run_percentage_area_found: String,
     p05_run_percentage_area_found: String,
