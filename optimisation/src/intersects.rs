@@ -39,17 +39,21 @@ fn excavated_overlap_area(feature: &MultiPolygon<f64>, trenches: &TrenchLayout) 
     total_overlap_area
 }
 
+/// Tests ArchFeatures against a TrenchLayout based on intersection area
+/// and returns a StatsMap with the results for the given layout.
 pub fn test_features_for_layout<'a>(
     features: &'a Vec<ArchFeature>,
     trenches: &TrenchLayout,
     site: &'a str,
 ) -> StatsMap<'a> {
-    let mut stats_map = StatsMap::new();
+    let mut stats_map_for_layout = StatsMap::new();
 
+    // First calculate the intersection area for each feature and then
+    // update the stats for each category and category value in the StatsMap.
     for feature in features {
         let excavated_area = excavated_overlap_area(&feature.multipolygon, trenches);
         for (category, category_value) in feature.iter_categories() {
-            stats_map.add_from_feature(
+            stats_map_for_layout.add_from_feature(
                 site,
                 category,
                 category_value,
@@ -60,8 +64,11 @@ pub fn test_features_for_layout<'a>(
             );
         }
     }
-    for stats in stats_map.0.values_mut() {
+
+    // Finally update the percentages for each category and category value in
+    // the stats map with the percentage area/features found for this layout.
+    for stats in stats_map_for_layout.0.values_mut() {
         stats.update_percentages();
     }
-    stats_map
+    stats_map_for_layout
 }

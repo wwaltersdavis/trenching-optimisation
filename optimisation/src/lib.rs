@@ -145,10 +145,10 @@ impl Distribution {
         }
     }
 
-    pub fn nominal_coverage_percent(&self) -> f64 {
+    pub fn nominal_coverage_percent(&self) -> Option<f64> {
         match self {
-            Distribution::Coverage(value) => value.0,
-            Distribution::Spacing(_) => f64::NAN,
+            Distribution::Coverage(value) => Some(value.0),
+            Distribution::Spacing(_) => None,
         }
     }
 }

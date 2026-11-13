@@ -66,30 +66,38 @@ impl DetectionStats {
         )
     }
 
-    pub fn probability_feature_recovery_ge_nominal(&self, nominal_coverage_percent: f64) -> f64 {
-        if nominal_coverage_percent.is_nan() {
-            return f64::NAN;
-        }
-        let n_ge_nominal = self
-            .features_found_percentages
-            .iter()
-            .filter(|&&p| p >= nominal_coverage_percent)
-            .count();
+    pub fn probability_feature_recovery_ge_nominal(
+        &self,
+        nominal_coverage_percent: Option<f64>,
+    ) -> f64 {
+        if let Some(nominal_coverage_percent) = nominal_coverage_percent {
+            let n_ge_nominal = self
+                .features_found_percentages
+                .iter()
+                .filter(|&&p| p >= nominal_coverage_percent)
+                .count();
 
-        percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
+            percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
+        } else {
+            f64::NAN
+        }
     }
 
-    pub fn probability_area_recovery_ge_nominal(&self, nominal_coverage_percent: f64) -> f64 {
-        if nominal_coverage_percent.is_nan() {
-            return f64::NAN;
-        }
-        let n_ge_nominal = self
-            .area_found_percentages
-            .iter()
-            .filter(|&&p| p >= nominal_coverage_percent)
-            .count();
+    pub fn probability_area_recovery_ge_nominal(
+        &self,
+        nominal_coverage_percent: Option<f64>,
+    ) -> f64 {
+        if let Some(nominal_coverage_percent) = nominal_coverage_percent {
+            let n_ge_nominal = self
+                .area_found_percentages
+                .iter()
+                .filter(|&&p| p >= nominal_coverage_percent)
+                .count();
 
-        percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
+            percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
+        } else {
+            f64::NAN
+        }
     }
 
     pub fn mean_run_feature_percentage(&self) -> f64 {
