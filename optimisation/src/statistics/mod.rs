@@ -11,16 +11,6 @@ pub fn percentage(numerator: f64, denominator: f64) -> f64 {
     numerator / denominator * 100.0
 }
 
-pub fn two_dp(value: f64) -> String {
-    format!("{:.2}", value)
-}
-
-pub fn four_dp(value: f64) -> String {
-    format!("{:.4}", value)
-}
-
-// TODO: rename this function to mean_from_sum_and_count or something
-// similar, as it is not a generic mean function.
 pub fn mean(values: &[f64]) -> f64 {
     let sum: f64 = values.iter().sum();
     let count = values.len();
@@ -72,6 +62,14 @@ pub fn percentile(values: &[f64], percentile: f64) -> f64 {
     }
 }
 
+pub fn two_dp(value: f64) -> String {
+    format!("{:.2}", value)
+}
+
+pub fn four_dp(value: f64) -> String {
+    format!("{:.4}", value)
+}
+
 #[cfg(test)]
 mod tests {
     use std::assert_eq;
@@ -81,17 +79,46 @@ mod tests {
     #[test]
     fn test_percentage() {
         assert_eq!(percentage(50.0, 200.0), 25.0);
+        assert!(percentage(50.0, 0.0).is_nan());
     }
 
-    // #[test]
-    // fn test_mean() {
-    //     assert_eq!(mean(100.0, 4), 25.0);
-    //     assert!(mean(100.0, 0).is_nan());
-    // }
+    #[test]
+    fn test_mean() {
+        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        assert_eq!(mean(&values), 3.0);
+    }
+
+    #[test]
+    fn test_standard_deviation() {
+        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        assert!((standard_deviation(&values) - 1.5811388300841898).abs() < 1e-10);
+        assert!(standard_deviation(&[1.0]).is_nan());
+    }
 
     #[test]
     fn test_two_dp() {
         assert_eq!(two_dp(3.589), "3.59");
         assert_eq!(two_dp(f64::NAN), "NaN");
+    }
+
+    #[test]
+    fn test_four_dp() {
+        assert_eq!(four_dp(3.589123), "3.5891");
+        assert_eq!(four_dp(f64::NAN), "NaN");
+    }
+
+    #[test]
+    fn test_percentile() {
+        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        assert_eq!(percentile(&values, 0.0), 1.0);
+        assert_eq!(percentile(&values, 0.25), 2.0);
+        assert_eq!(percentile(&values, 0.5), 3.0);
+        assert_eq!(percentile(&values, 0.75), 4.0);
+        assert_eq!(percentile(&values, 1.0), 5.0);
+        assert_eq!(percentile(&values, 0.6), 3.4);
+        assert_eq!(percentile(&values, -0.1), 1.0); // Clamped to 0.0
+        assert_eq!(percentile(&values, 1.1), 5.0); // Clamped to 1.0
+        assert!(percentile(&[], 0.5).is_nan());
+        assert!(percentile(&[f64::NAN, f64::INFINITY], 0.5).is_nan());
     }
 }
