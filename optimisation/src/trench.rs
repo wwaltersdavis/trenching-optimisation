@@ -322,13 +322,13 @@ fn adjust_trench_layout_to_coverage(
 
     // println!("Target coverage: {}", target_coverage);
 
-    while (iteration <= 30) && !check_coverage(current_coverage, target_coverage) {
+    while (iteration <= 50) && !check_coverage(current_coverage, target_coverage) {
         // println!("\nCurrent iteration: {}", iteration);
         // println!("Current spacing: {}", current_spacing);
         // println!("Current coverage: {}", current_coverage);
 
         // adjust current_spacing to get closer to target_coverage
-        let adjustment_factor = 0.90_f64.powf(iteration as f64); // Bumped this from 0.82 due to the increase in iterations.
+        let adjustment_factor = 0.94_f64.powf(iteration as f64); // Bumped this from 0.82 due to the increase in iterations.
         let error = (target_coverage - current_coverage) / target_coverage;
         if error < 0.0 {
             current_spacing *= 1.0 + -error * adjustment_factor;
