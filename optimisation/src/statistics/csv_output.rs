@@ -25,7 +25,6 @@ struct Row<'a> {
     mean_trenches_per_pattern: String,
     features_detected_per_trench: String,
     excavated_feature_area_per_trench_m2: String,
-    eligible_runs: u32,
     detected_runs: u32,
     probability_detection: String,
     probability_feature_recovery_ge_nominal: String,
@@ -76,7 +75,6 @@ impl<'a> Row<'a> {
             mean_trenches_per_pattern: two_dp(stats.mean_trenches_per_pattern()),
             features_detected_per_trench: four_dp(stats.features_detected_per_trench()),
             excavated_feature_area_per_trench_m2: four_dp(stats.excavated_feature_area_per_trench()),
-            eligible_runs: stats.total_layouts_tested,
             detected_runs: stats.layouts_tested_where_a_feature_found,
             probability_detection: two_dp(stats.probability_detection()),
             probability_feature_recovery_ge_nominal: two_dp(stats.probability_feature_recovery_ge_nominal(distribution.nominal_coverage_percent())),
@@ -90,7 +88,6 @@ impl<'a> Row<'a> {
             p50_run_percentage_found: two_dp(stats.run_feature_percentage(0.5)),
             p75_run_percentage_found: two_dp(stats.run_feature_percentage(0.75)),
             p95_run_percentage_found: two_dp(stats.run_feature_percentage(0.95)),
-            // area_eligible_runs: stats.area_eligible_runs, // TODO: Explore what this is supposed to be
             mean_run_percentage_area_found: two_dp(stats.mean_run_area_percentage()),
             sd_run_percentage_area_found: two_dp(stats.sd_run_area_percentage()),
             p05_run_percentage_area_found: two_dp(stats.run_area_percentage(0.05)),
@@ -111,9 +108,9 @@ pub fn write_to_csv(
     let mut wtr = Writer::from_path(output_path)?;
     for ((site, category, category_value), stats) in all_stats_map.0 {
         wtr.serialize(Row::from_stats(
-            &site,
-            &category,
-            &category_value,
+            site,
+            category,
+            category_value,
             &stats,
             distribution,
             config.pattern_name.as_str(),
