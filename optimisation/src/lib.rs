@@ -282,13 +282,6 @@ fn minimum_spacing(rectangle: Rectangle, angle_1: Degree, angle_2: Degree) -> f6
         .fold(f64::NEG_INFINITY, |max, &val| max.max(val))
 }
 
-pub fn test_get_minimum_spacing(rectangle: Rectangle, angle_1: Degree, angle_2: Degree) {
-    let now = Instant::now();
-    let min_spacing = minimum_spacing(rectangle, angle_1, angle_2);
-    println!("Finding minimum spacing took: {:?}", now.elapsed());
-    println!("Minimum spacing: {:?}", min_spacing);
-}
-
 pub fn get_minimum_spacing(structure: Structure) -> f64 {
     match structure {
         Structure::Parallel(line) => line.width,

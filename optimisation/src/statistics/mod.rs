@@ -59,14 +59,6 @@ pub fn percentile(percentages: &[Percentage], percentile: f64) -> Percentage {
     }
 }
 
-pub fn two_dp(value: f64) -> String {
-    format!("{:.2}", value)
-}
-
-pub fn four_dp(value: f64) -> String {
-    format!("{:.4}", value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,24 +83,11 @@ mod tests {
     }
 
     #[test]
-    fn test_two_dp() {
-        assert_eq!(two_dp(3.589), "3.59");
-        assert_eq!(two_dp(f64::NAN), "NaN");
-    }
-
-    #[test]
-    fn test_four_dp() {
-        assert_eq!(four_dp(3.589123), "3.5891");
-        assert_eq!(four_dp(f64::NAN), "NaN");
-    }
-
-    #[test]
     fn test_percentile() {
         let values: Vec<Percentage> = vec![1.0, 2.0, 3.0, 4.0, 5.0]
             .into_iter()
             .map(Percentage)
             .collect();
-
         assert_eq!(percentile(&values, 0.0), Percentage(1.0));
         assert_eq!(percentile(&values, 0.25), Percentage(2.0));
         assert_eq!(percentile(&values, 0.5), Percentage(3.0));
