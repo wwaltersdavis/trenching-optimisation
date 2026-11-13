@@ -196,4 +196,20 @@ impl<'a> StatsMap<'a> {
             }
         }
     }
+
+    pub fn general_stats_message(&self) -> String {
+        if let Some(stats) = self.0.get(&("All", "All", "All")) {
+            format!(
+                "Total features found: {} \nTotal features missed: {} \nPercentage found: {:.2}% \nTotal trenches deployed: {}",
+                stats.total_features_found,
+                stats.total_features_missed,
+                stats.feature_found_percentage(),
+                stats.total_trenches_deployed,
+            )
+        } else {
+            "No general stats available.".to_string()
+        }
+    }
 }
+
+// TODO: Add tests for StatsMap and DetectionStats methods.

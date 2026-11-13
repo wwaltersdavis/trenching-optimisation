@@ -59,14 +59,7 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) -> Result<(
         total_testing_time as f64 / 1000.0
     );
 
-    // println!(
-    //     "Total features found: {}, total features missed: {}, percentage found: {:.2}%",
-    //     overall_stats.found,
-    //     overall_stats.missed,
-    //     overall_stats.feature_percentage()
-    // );
-
-    // println!("Total trench patterns tested: {}", total_trenches);
+    println!("{}", all_stats_map.general_stats_message());
 
     let output_path = format!(
         "../data/results_{:?}_{}.csv",
@@ -85,19 +78,3 @@ pub fn all_loes(config: &TrenchConfig, selected_layer: Option<&str>) -> Result<(
     println!("Testing took: {:?}", now.elapsed());
     Ok(())
 }
-
-// // Add the tested layouts to the overall stats.
-// let (layouts_tested, total_trenches_deployed) = &trenches
-//     .iter()
-//     .fold((0, 0), |(layouts, trenches), layout| {
-//         (layouts + 1, trenches + layout.trenches_deployed as u32)
-//     });
-// for (category, category_value) in test_location.unique_categories() {
-//     all_stats_map.add_trenches_deployed(
-//         &test_location.site_name,
-//         category,
-//         category_value,
-//         *total_trenches_deployed,
-//         *layouts_tested,
-//     );
-// }
