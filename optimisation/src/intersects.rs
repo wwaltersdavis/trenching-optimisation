@@ -65,10 +65,10 @@ pub fn test_features_for_layout<'a>(
         }
     }
 
-    // Finally update the percentages for each category and category value in
+    // Finally set the percentages for each category and category value in
     // the stats map with the percentage area/features found for this layout.
     for stats in stats_map_for_layout.0.values_mut() {
-        stats.update_percentages();
+        stats.set_percentages();
     }
     stats_map_for_layout
 }

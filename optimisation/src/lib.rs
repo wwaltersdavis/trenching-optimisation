@@ -76,18 +76,70 @@ impl Degree {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Percentage(pub f64);
 
 impl Percentage {
-    pub fn new_from_percentage(value: f64) -> Self {
-        Percentage(value)
-    }
     pub fn new_from_decimal(value: f64) -> Self {
         Percentage(value * 100.0)
     }
     pub fn percentage_as_decimal(&self) -> f64 {
         self.0 / 100.0
+    }
+    pub fn from_fraction(numerator: f64, denominator: f64) -> Self {
+        if denominator == 0.0 {
+            panic!("Denominator should not be zero.");
+        } else {
+            Percentage::new_from_decimal(numerator / denominator)
+        }
+    }
+    pub fn to_2dp(&self) -> String {
+        format!("{:.2}", self.0)
+    }
+}
+
+impl std::ops::Mul<f64> for Percentage {
+    type Output = Percentage;
+    fn mul(self, rhs: f64) -> Percentage {
+        Percentage(self.0 * rhs)
+    }
+}
+
+impl std::ops::Add for Percentage {
+    type Output = Percentage;
+    fn add(self, rhs: Percentage) -> Percentage {
+        Percentage(self.0 + rhs.0)
+    }
+}
+
+impl std::iter::Sum for Percentage {
+    fn sum<I: Iterator<Item = Percentage>>(iter: I) -> Self {
+        Percentage(iter.map(|p| p.0).sum())
+    }
+}
+
+impl std::ops::Div for Percentage {
+    type Output = Percentage;
+    fn div(self, rhs: Percentage) -> Percentage {
+        Percentage(self.0 / rhs.0)
+    }
+}
+
+impl From<u32> for Percentage {
+    fn from(value: u32) -> Self {
+        Percentage(value as f64)
+    }
+}
+
+impl From<Percentage> for f64 {
+    fn from(value: Percentage) -> f64 {
+        value.0
+    }
+}
+
+impl From<f64> for Percentage {
+    fn from(value: f64) -> Self {
+        Percentage(value)
     }
 }
 
@@ -145,9 +197,9 @@ impl Distribution {
         }
     }
 
-    pub fn nominal_coverage_percent(&self) -> Option<f64> {
+    pub fn nominal_coverage_percent(&self) -> Option<Percentage> {
         match self {
-            Distribution::Coverage(value) => Some(value.0),
+            Distribution::Coverage(value) => Some(*value),
             Distribution::Spacing(_) => None,
         }
     }
