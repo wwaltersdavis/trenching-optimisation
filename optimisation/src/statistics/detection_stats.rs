@@ -1,178 +1,199 @@
-use crate::{
-    intersects::FeaturesStats,
-    statistics::{mean, percentage, percentile, sample_sd},
-};
+use crate::statistics::{mean, percentage, percentile, standard_deviation};
+use std::collections::HashMap;
 
-#[derive(Debug, Default, Clone)]
 pub struct DetectionStats {
-    pub found: i64,
-    pub missed: i64,
-    pub area_found: f64,
-    pub area_missed: f64,
-    pub trenches_deployed: u64,
-    pub eligible_runs: u64,
-    pub detected_runs: u64,
-    nominal_feature_recovery_runs: u64,
-
-    feature_percentage_sum: f64,
-    feature_percentage_sum_squares: f64,
-    // Store run-level recovery values so we can calculate true percentile bands
-    // for fan plots: p05/p25/p50/p75/p95.
-    feature_percentage_values: Vec<f64>,
-
-    pub area_eligible_runs: u64,
-    nominal_area_recovery_runs: u64,
-    area_percentage_sum: f64,
-    area_percentage_sum_squares: f64,
-
-    // Store run-level area recovery values for true area fan plots.
-    area_percentage_values: Vec<f64>,
+    pub total_features_found: u32,
+    pub total_features_missed: u32,
+    pub total_area_found: f64,
+    pub total_area_missed: f64,
+    pub total_layouts_tested: u32,
+    pub total_trenches_deployed: u32,
+    pub features_found_percentages: Vec<f64>,
+    pub area_found_percentages: Vec<f64>,
+    pub layouts_tested_where_a_feature_found: u32,
 }
 
 impl DetectionStats {
-    pub fn add_run(&mut self, features_stats: &FeaturesStats, nominal_coverage_percent: f64) {
-        self.found += features_stats.features_found as i64;
-        self.missed += features_stats.features_missed as i64;
-        self.area_found += features_stats.area_found;
-        self.area_missed += features_stats.area_missed;
-        self.trenches_deployed += features_stats.trenches_deployed;
-
-        let feature_total = features_stats.features_found + features_stats.features_missed;
-
-        if feature_total > 0 {
-            let percentage = features_stats.features_found as f64 / feature_total as f64 * 100.0;
-
-            self.eligible_runs += 1;
-
-            if features_stats.features_found > 0 {
-                self.detected_runs += 1;
-            }
-
-            if nominal_coverage_percent.is_finite() && percentage >= nominal_coverage_percent {
-                self.nominal_feature_recovery_runs += 1;
-            }
-
-            self.feature_percentage_sum += percentage;
-            self.feature_percentage_sum_squares += percentage * percentage;
-            self.feature_percentage_values.push(percentage);
-        }
-
-        let area_total = features_stats.area_found + features_stats.area_missed;
-
-        if area_total > 0.0 {
-            let percentage = features_stats.area_found / area_total * 100.0;
-
-            self.area_eligible_runs += 1;
-
-            if nominal_coverage_percent.is_finite() && percentage >= nominal_coverage_percent {
-                self.nominal_area_recovery_runs += 1;
-            }
-
-            self.area_percentage_sum += percentage;
-            self.area_percentage_sum_squares += percentage * percentage;
-            self.area_percentage_values.push(percentage);
+    pub fn new() -> Self {
+        DetectionStats {
+            total_features_found: 0,
+            total_features_missed: 0,
+            total_area_found: 0.0,
+            total_area_missed: 0.0,
+            total_layouts_tested: 0,
+            total_trenches_deployed: 0,
+            features_found_percentages: Vec::new(),
+            area_found_percentages: Vec::new(),
+            layouts_tested_where_a_feature_found: 0,
         }
     }
 
-    pub fn feature_percentage(&self) -> f64 {
-        percentage(self.found as f64, (self.found + self.missed) as f64)
+    pub fn update_percentages(&mut self) {
+        self.features_found_percentages = vec![self.feature_found_percentage()];
+        self.area_found_percentages = vec![self.area_found_percentage()];
     }
 
-    pub fn area_percentage(&self) -> f64 {
-        percentage(self.area_found, self.area_found + self.area_missed)
-    }
-
-    pub fn probability_detection(&self) -> f64 {
-        percentage(self.detected_runs as f64, self.eligible_runs as f64)
-    }
-
-    pub fn probability_feature_recovery_ge_nominal(&self) -> f64 {
+    pub fn feature_found_percentage(&self) -> f64 {
         percentage(
-            self.nominal_feature_recovery_runs as f64,
-            self.eligible_runs as f64,
+            self.total_features_found as f64,
+            (self.total_features_found + self.total_features_missed) as f64,
         )
     }
 
-    pub fn probability_area_recovery_ge_nominal(&self) -> f64 {
+    pub fn area_found_percentage(&self) -> f64 {
         percentage(
-            self.nominal_area_recovery_runs as f64,
-            self.area_eligible_runs as f64,
+            self.total_area_found,
+            self.total_area_found + self.total_area_missed,
         )
-    }
-
-    pub fn coefficient_of_variation_feature_recovery(&self) -> f64 {
-        let mean = self.mean_run_feature_percentage();
-
-        if mean > 0.0 {
-            self.sd_run_feature_percentage() / mean
-        } else {
-            f64::NAN
-        }
-    }
-
-    pub fn coefficient_of_variation_area_recovery(&self) -> f64 {
-        let mean = self.mean_run_area_percentage();
-
-        if mean > 0.0 {
-            self.sd_run_area_percentage() / mean
-        } else {
-            f64::NAN
-        }
-    }
-
-    pub fn mean_run_feature_percentage(&self) -> f64 {
-        mean(self.feature_percentage_sum, self.eligible_runs)
-    }
-
-    pub fn sd_run_feature_percentage(&self) -> f64 {
-        sample_sd(
-            self.feature_percentage_sum,
-            self.feature_percentage_sum_squares,
-            self.eligible_runs,
-        )
-    }
-
-    pub fn mean_run_area_percentage(&self) -> f64 {
-        mean(self.area_percentage_sum, self.area_eligible_runs)
-    }
-
-    pub fn sd_run_area_percentage(&self) -> f64 {
-        sample_sd(
-            self.area_percentage_sum,
-            self.area_percentage_sum_squares,
-            self.area_eligible_runs,
-        )
-    }
-
-    pub fn run_feature_percentage(&self, p: f64) -> f64 {
-        percentile(&self.feature_percentage_values, p)
-    }
-
-    pub fn run_area_percentage(&self, p: f64) -> f64 {
-        percentile(&self.area_percentage_values, p)
     }
 
     pub fn mean_trenches_per_pattern(&self) -> f64 {
-        if self.eligible_runs > 0 {
-            self.trenches_deployed as f64 / self.eligible_runs as f64
-        } else {
-            f64::NAN
-        }
+        self.total_trenches_deployed as f64 / self.total_layouts_tested as f64
     }
 
     pub fn features_detected_per_trench(&self) -> f64 {
-        if self.trenches_deployed > 0 {
-            self.found as f64 / self.trenches_deployed as f64
-        } else {
-            f64::NAN
-        }
+        self.total_features_found as f64 / self.total_trenches_deployed as f64
     }
 
     pub fn excavated_feature_area_per_trench(&self) -> f64 {
-        if self.trenches_deployed > 0 {
-            self.area_found / self.trenches_deployed as f64
-        } else {
-            f64::NAN
+        self.total_area_found / self.total_trenches_deployed as f64
+    }
+
+    pub fn probability_detection(&self) -> f64 {
+        percentage(
+            self.layouts_tested_where_a_feature_found as f64,
+            self.total_layouts_tested as f64,
+        )
+    }
+
+    pub fn probability_feature_recovery_ge_nominal(&self, nominal_coverage_percent: f64) -> f64 {
+        if nominal_coverage_percent.is_nan() {
+            return f64::NAN;
+        }
+        let n_ge_nominal = self
+            .features_found_percentages
+            .iter()
+            .filter(|&&p| p >= nominal_coverage_percent)
+            .count();
+
+        percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
+    }
+
+    pub fn probability_area_recovery_ge_nominal(&self, nominal_coverage_percent: f64) -> f64 {
+        if nominal_coverage_percent.is_nan() {
+            return f64::NAN;
+        }
+        let n_ge_nominal = self
+            .area_found_percentages
+            .iter()
+            .filter(|&&p| p >= nominal_coverage_percent)
+            .count();
+
+        percentage(n_ge_nominal as f64, self.total_layouts_tested as f64)
+    }
+
+    pub fn mean_run_feature_percentage(&self) -> f64 {
+        mean(&self.features_found_percentages)
+    }
+
+    pub fn sd_run_feature_percentage(&self) -> f64 {
+        standard_deviation(&self.features_found_percentages)
+    }
+
+    pub fn mean_run_area_percentage(&self) -> f64 {
+        mean(&self.area_found_percentages)
+    }
+
+    pub fn sd_run_area_percentage(&self) -> f64 {
+        standard_deviation(&self.area_found_percentages)
+    }
+
+    pub fn coefficient_of_variation_feature_recovery(&self) -> f64 {
+        self.sd_run_feature_percentage() / self.mean_run_feature_percentage()
+    }
+
+    pub fn coefficient_of_variation_area_recovery(&self) -> f64 {
+        self.sd_run_area_percentage() / self.mean_run_area_percentage()
+    }
+
+    pub fn run_feature_percentage(&self, p: f64) -> f64 {
+        percentile(&self.features_found_percentages, p)
+    }
+
+    pub fn run_area_percentage(&self, p: f64) -> f64 {
+        percentile(&self.area_found_percentages, p)
+    }
+}
+
+// Key: (site, category, category_value)
+pub struct StatsMap<'a>(pub HashMap<(&'a str, &'a str, &'a str), DetectionStats>);
+
+impl<'a> StatsMap<'a> {
+    pub fn new() -> Self {
+        StatsMap(HashMap::new())
+    }
+
+    fn get_key(
+        site: &'a str,
+        category: &'a str,
+        category_value: &'a str,
+    ) -> (&'a str, &'a str, &'a str) {
+        (site, category, category_value)
+    }
+
+    pub fn add_from_feature(
+        &mut self,
+        site: &'a str,
+        category: &'a str,
+        category_value: &'a str,
+        feature_found: bool,
+        area_found: f64,
+        area_missed: f64,
+        trenches_deployed: u32,
+    ) {
+        for site in [site, "All"] {
+            let key = Self::get_key(site, category, category_value);
+            let stats = self.0.entry(key).or_insert_with(DetectionStats::new);
+
+            if feature_found {
+                stats.total_features_found += 1;
+            } else {
+                stats.total_features_missed += 1;
+            }
+            stats.total_area_found += area_found;
+            stats.total_area_missed += area_missed;
+            // Can just set these every time as very minor cost
+            stats.total_layouts_tested = 1;
+            stats.total_trenches_deployed = trenches_deployed;
+        }
+    }
+
+    pub fn add_from_maps(&mut self, stats_maps: &Vec<StatsMap<'a>>) {
+        for stats_map in stats_maps {
+            for ((site, category, category_value), stats) in &stats_map.0 {
+                let key = Self::get_key(site, category, category_value);
+                let entry = self.0.entry(key).or_insert_with(DetectionStats::new);
+
+                entry.total_features_found += stats.total_features_found;
+                entry.total_features_missed += stats.total_features_missed;
+                entry.total_area_found += stats.total_area_found;
+                entry.total_area_missed += stats.total_area_missed;
+                entry.total_layouts_tested += stats.total_layouts_tested;
+                entry.total_trenches_deployed += stats.total_trenches_deployed;
+                entry
+                    .features_found_percentages
+                    .extend(&stats.features_found_percentages);
+                entry
+                    .area_found_percentages
+                    .extend(&stats.area_found_percentages);
+                entry.layouts_tested_where_a_feature_found += {
+                    if stats.total_features_found > 0 {
+                        1
+                    } else {
+                        0
+                    }
+                }
+            }
         }
     }
 }
